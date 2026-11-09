@@ -3,10 +3,7 @@
 **Document Version:** 1.0
 **Status:** Approved
 **Project:** StockFlow
-**Related Documents:**
-
-- `docs/requirements/srs.md`
-- `docs/architecture/architecture.md`
+**Document Type:** Database Design
 
 ---
 
