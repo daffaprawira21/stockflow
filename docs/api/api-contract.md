@@ -3,11 +3,7 @@
 **Document Version:** 1.0
 **Status:** Draft
 **Project:** StockFlow
-**Related Documents:**
-
-- `docs/requirements/srs.md`
-- `docs/architecture/architecture.md`
-- `docs/database/database-design.md`
+**Document Type:** API Contract
 
 ---
 
