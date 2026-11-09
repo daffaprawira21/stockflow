@@ -1,14 +1,9 @@
-# StockFlow — Testing Strategy
+# StockFlow — Testing Strategy Document
 
 **Document Version:** 1.0
 **Status:** Approved
 **Project:** StockFlow
-**Related Documents:**
-
-- `docs/requirements/srs.md`
-- `docs/architecture/architecture.md`
-- `docs/database/database-design.md`
-- `docs/api/api-contract.md`
+**Document Type:** Testing Strategy
 
 ---
 
