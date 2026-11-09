@@ -3,7 +3,7 @@
 **Document Version:** 1.0
 **Status:** Approved
 **Project:** StockFlow
-**Related Document:** [Software Requirements Specification](../requirements/srs.md)
+**Document Type:** System Architecture
 
 ---
 
