@@ -10,6 +10,43 @@ This project is being developed as a software engineering learning project and d
 >
 > The requirements and initial technical designs have been reviewed. Application features are not yet implemented.
 
+## Getting Started
+
+### Requirements
+
+- Node.js
+- npm
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Run the development server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view StockFlow.
+
+### Verify the application
+
+Install the Playwright browser once:
+
+```bash
+npx playwright install chromium
+```
+
+Then run the type check and tests:
+
+```bash
+npm run typecheck
+npm test
+npm run test:e2e
+```
+
 ## Table of Contents
 
 - [Overview](#overview)
