@@ -168,7 +168,8 @@ StockFlow is divided into the following logical modules.
 Responsibilities:
 
 - Authenticate administrators.
-- Manage authentication sessions.
+- Manage administrator sessions stored in PostgreSQL.
+- Revoke sessions on logout and remove expired sessions after successful login.
 - Protect application routes and operations.
 - Enforce the ADMIN role.
 
@@ -337,6 +338,9 @@ This approach ensures that related changes across modules remain atomic while pr
 StockFlow applies the following security principles:
 
 - Authentication is required for protected application functionality.
+- Administrator sessions are stored in PostgreSQL and validated server-side.
+- Session tokens are stored as cryptographic hashes in the database and sent only in HttpOnly cookies.
+- Sessions have a fixed 12-hour lifetime, are revoked on logout, and expired records are removed after successful login.
 - Only users with the ADMIN role may access administrative operations.
 - Authorization must be enforced on the server side.
 - Incoming data must be validated before business processing.

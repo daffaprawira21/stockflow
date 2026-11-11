@@ -1,7 +1,7 @@
 # StockFlow — API Contract Document
 
 **Document Version:** 1.0
-**Status:** Draft
+**Status:** Approved
 **Project:** StockFlow
 **Document Type:** API Contract
 
@@ -184,17 +184,19 @@ The MVP does not implement login rate limiting. Therefore, `429 RATE_LIMITED` is
 
 StockFlow uses cookie-based session authentication.
 
-After successful login, the server creates an authenticated session and sends a session cookie.
+After successful login, the server creates a session record in PostgreSQL and sends a cryptographically random session token in a cookie. The database stores only a cryptographic hash of the token.
 
 The cookie must use:
 
 - HttpOnly.
 - Secure in production.
 - SameSite protection.
-- Appropriate expiration.
-- Server-side session validation.
+- A 12-hour expiration matching the server-side session expiration.
+- Server-side session validation against the PostgreSQL session record.
 
-Session tokens must not be stored in browser localStorage.
+The session has a fixed 12-hour lifetime and is not extended by activity. Session tokens must not be stored in browser localStorage.
+
+After successful login, the server deletes expired session records. This cleanup must not remove unexpired sessions. Logout immediately revokes the current session by deleting its server-side record and clears the session cookie.
 
 ## 3.2 Authorization
 
@@ -228,6 +230,8 @@ A dedicated CSRF mechanism may be reconsidered before public production deployme
 Expired or invalid sessions must return:
 
 HTTP 401 — `UNAUTHENTICATED`.
+
+The server must treat a session as expired at or after its `expires_at` timestamp, regardless of whether its record has been removed by cleanup.
 
 The client must redirect the administrator to the login interface when appropriate.
 
@@ -341,7 +345,7 @@ Response:
 }
 ```
 
-The server invalidates the session and clears the session cookie.
+The server deletes the current session record from PostgreSQL, immediately invalidating the session, and clears the session cookie.
 
 ## 5.3 Get Current User
 
@@ -534,7 +538,7 @@ Request:
 Rules:
 
 - Only provided fields are updated.
-- SKU must remain unique if SKU updates are supported.
+- SKU cannot be changed after product creation and must not be accepted in the request body.
 - Price cannot be negative.
 - Stock cannot be modified through this endpoint.
 - Inventory changes must use the Inventory module.
@@ -572,10 +576,14 @@ Authentication: Required.
 
 Query parameters:
 
-- `page`
-- `limit`
-- `search`
-- `lowStock`
+| Parameter  | Type    | Required | Rule                                                       |
+| ---------- | ------- | -------- | ---------------------------------------------------------- |
+| `page`     | Integer | No       | Must be >= 1; defaults to 1                                |
+| `limit`    | Integer | No       | Must be between 1 and 100; defaults to 10                  |
+| `search`   | String  | No       | Filters inventory by product name or SKU                   |
+| `lowStock` | Integer | No       | Must be >= 0; filters products whose stock is <= this value |
+
+When `lowStock` is omitted, no stock threshold filter is applied. `lowStock=0` returns products with zero stock.
 
 Success: HTTP 200.
 
@@ -625,7 +633,7 @@ Response:
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "productId": "550e8400-e29b-41d4-a716-446655440001",
-      "movementType": "ORDER_CONFIRMATION",
+      "movementType": "ORDER_CONFIRMED",
       "quantityDelta": -5,
       "quantityBefore": 50,
       "quantityAfter": 45,
@@ -670,11 +678,12 @@ Validation:
 - Product ID must be a valid UUID.
 - Quantity must be a positive integer.
 - Reason must not be empty.
-- Product must exist.
+- Product must exist; product activity status does not restrict stock adjustments.
 - Resulting stock must not be negative.
 
 Business rules:
 
+- Stock adjustments are allowed for both active and inactive products.
 - Inventory Application Service owns the transaction.
 - Update `products.stock`.
 - Insert the corresponding stock movement.
@@ -729,7 +738,7 @@ Response:
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "orderNumber": "ORD-2026-0001",
+      "orderNumber": "ORD-2026-000001",
       "status": "PENDING",
       "totalAmount": "300000.00",
       "createdAt": "2026-10-30T08:00:00.000Z"
@@ -783,6 +792,8 @@ Validation:
 
 Business rules:
 
+- Generate `orderNumber` in the format `ORD-YYYY-000001`, using the UTC calendar year of order creation and a global sequence that does not reset annually.
+- Obtain sequence values from PostgreSQL so concurrent requests receive unique sequence values. Sequence values are not reused; gaps may occur when a transaction fails.
 - Capture current product prices at order creation.
 - Store price snapshots in `order_items`.
 - Calculate subtotals and total amount.
@@ -800,7 +811,7 @@ Response:
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440002",
-    "orderNumber": "ORD-2026-0001",
+    "orderNumber": "ORD-2026-000001",
     "status": "PENDING",
     "items": [
       {
@@ -854,7 +865,7 @@ Response:
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440002",
-    "orderNumber": "ORD-2026-0001",
+    "orderNumber": "ORD-2026-000001",
     "status": "PENDING",
     "totalAmount": "300000.00",
     "items": [],
@@ -881,7 +892,7 @@ Business rules:
 - All products must be active.
 - Latest stock quantities must be sufficient.
 - Deduct stock for all order items.
-- Record `ORDER_CONFIRMATION` movements.
+- Record `ORDER_CONFIRMED` movements.
 - Update status to `CONFIRMED`.
 - Record order status history.
 - Execute all operations in one transaction coordinated by Orders Application Service.
@@ -939,7 +950,7 @@ Business rules:
 ### For CONFIRMED orders
 
 - Restore stock.
-- Create `ORDER_CANCELLATION` movements.
+- Create `ORDER_CANCELLED` movements.
 - Change status to `CANCELLED`.
 - Record status history, including the cancellation reason.
 - Execute all changes atomically.
@@ -1135,11 +1146,15 @@ The following API scenarios must be tested.
 
 - View inventory.
 - View inventory with search.
-- View low-stock inventory.
+- View inventory with `lowStock` threshold filtering.
+- Include zero-stock products when `lowStock=0`.
+- Reject negative and non-integer `lowStock` values.
+- Do not apply a stock threshold when `lowStock` is omitted.
 - View stock movement history.
 - Filter stock movement history by movement type.
 - Increase stock.
 - Decrease stock.
+- Adjust stock for an inactive product.
 - Reject negative resulting stock.
 - Reject adjustment without reason.
 - Verify stock update and movement record are atomic.
@@ -1173,7 +1188,9 @@ The following API scenarios must be tested.
 - Unauthenticated requests.
 - Invalid input.
 - Unauthorized operations.
-- Cookie configuration.
+- Cookie configuration, including the 12-hour session expiration.
+- Immediate session revocation on logout.
+- Removal of expired sessions after successful login without deleting unexpired sessions.
 - Origin validation for state-changing requests.
 - Verify login rate limiting is not part of MVP acceptance criteria.
 

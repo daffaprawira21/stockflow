@@ -87,7 +87,7 @@ Products that are no longer available must be deactivated instead.
 
 # 3. Entity Overview
 
-StockFlow uses seven primary database tables:
+StockFlow uses eight primary database tables:
 
 | Entity               | Description                                       |
 | -------------------- | ------------------------------------------------- |
@@ -98,6 +98,7 @@ StockFlow uses seven primary database tables:
 | stock_movements      | Stores inventory movement history                 |
 | order_status_history | Stores order status transitions                   |
 | idempotency_records  | Stores idempotency keys and operation results     |
+| sessions             | Stores hashed administrator session tokens        |
 
 ## 3.1 Entity Relationship Diagram
 
@@ -107,6 +108,7 @@ erDiagram
     USERS ||--o{ STOCK_MOVEMENTS : performs
     USERS ||--o{ ORDER_STATUS_HISTORY : changes
     USERS ||--o{ IDEMPOTENCY_RECORDS : owns
+    USERS ||--o{ SESSIONS : has
 
     ORDERS ||--|{ ORDER_ITEMS : contains
     PRODUCTS ||--o{ ORDER_ITEMS : referenced_by
@@ -124,6 +126,14 @@ erDiagram
         varchar role
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash UK
+        timestamptz expires_at
+        timestamptz created_at
     }
 
     PRODUCTS {
@@ -224,7 +234,30 @@ Purpose: Stores administrator authentication and account information.
 - Role authorization must be enforced by the application.
 - Referenced users cannot be physically deleted through normal application workflows.
 
-## 4.2 Products
+## 4.2 Sessions
+
+Table name: `sessions`
+
+Purpose: Stores active administrator sessions for server-side validation and revocation.
+
+| Column     | Data Type    | Constraints           |
+| ---------- | ------------ | --------------------- |
+| id         | UUID         | Primary Key           |
+| user_id    | UUID         | NOT NULL, FK users.id |
+| token_hash | VARCHAR(255) | NOT NULL, UNIQUE      |
+| expires_at | TIMESTAMPTZ  | NOT NULL              |
+| created_at | TIMESTAMPTZ  | NOT NULL              |
+
+### Session Rules
+
+- Store only a cryptographic hash of the session token; send the raw token only in the session cookie.
+- Sessions expire 12 hours after creation; expiration is fixed and is not extended by activity.
+- Logout revokes the current session immediately by deleting its record.
+- After successful login, delete expired session records.
+- Do not delete unexpired sessions during expired-session cleanup.
+- Session cookies must use HttpOnly, Secure in production, and SameSite protection.
+
+## 4.3 Products
 
 Table name: `products`
 
@@ -252,6 +285,7 @@ Purpose: Stores product information and current inventory balance.
 - Inactive products cannot be included in new orders.
 - Inactive products cannot be used to confirm pending orders.
 - Inactive products can remain associated with historical orders.
+- Manual stock adjustments are allowed for inactive products.
 - Products must be deactivated rather than physically deleted when historical references exist.
 
 ### Inventory Balance Principle
@@ -260,7 +294,7 @@ Purpose: Stores product information and current inventory balance.
 
 It must be updated in the same database transaction as the corresponding stock movement.
 
-## 4.3 Orders
+## 4.4 Orders
 
 Table name: `orders`
 
@@ -300,6 +334,8 @@ Purpose: Stores the main information of customer orders.
 ### Business Rules
 
 - New orders must start with PENDING status.
+- Order numbers use the format `ORD-YYYY-000001`, where `YYYY` is the UTC calendar year of order creation and the sequence is global and does not reset annually.
+- Order numbers must be generated from a PostgreSQL sequence to ensure uniqueness under concurrent order creation. Sequence values are not reused; gaps may occur when a transaction fails.
 - Creating an order does not deduct stock.
 - Stock is deducted only when an order is confirmed.
 - Order confirmation must validate current stock and product activity.
@@ -309,7 +345,7 @@ Purpose: Stores the main information of customer orders.
 - Order status transitions must be recorded in order_status_history.
 - All order operations must follow the defined transaction rules.
 
-## 4.4 Order Items
+## 4.5 Order Items
 
 Table name: `order_items`
 
@@ -350,7 +386,7 @@ The order total is the sum of all order item subtotals.
 
 Order items are historical transaction details and must not be modified through normal application workflows after order creation.
 
-## 4.5 Stock Movements
+## 4.6 Stock Movements
 
 Table name: `stock_movements`
 
@@ -371,13 +407,13 @@ Purpose: Records all inventory quantity changes.
 
 ### Movement Types
 
-| Movement Type      | Quantity Direction | Description                          |
-| ------------------ | ------------------ | ------------------------------------ |
-| INITIAL_STOCK      | Positive           | Initial product stock                |
-| ORDER_CONFIRMATION | Negative           | Stock deduction after confirmation   |
-| ORDER_CANCELLATION | Positive           | Stock restoration after cancellation |
-| ADJUSTMENT_IN      | Positive           | Manual stock increase                |
-| ADJUSTMENT_OUT     | Negative           | Manual stock decrease                |
+| Movement Type   | Quantity Direction | Description                          |
+| --------------- | ------------------ | ------------------------------------ |
+| INITIAL_STOCK   | Positive           | Initial product stock                |
+| ORDER_CONFIRMED | Negative           | Stock deduction after confirmation   |
+| ORDER_CANCELLED | Positive           | Stock restoration after cancellation |
+| ADJUSTMENT_IN   | Positive           | Manual stock increase                |
+| ADJUSTMENT_OUT  | Negative           | Manual stock decrease                |
 
 ### Movement Rules
 
@@ -386,8 +422,8 @@ Purpose: Records all inventory quantity changes.
 - Quantity after must equal quantity before plus quantity delta.
 - Quantity after cannot be negative.
 - INITIAL_STOCK must be positive.
-- ORDER_CONFIRMATION must be negative.
-- ORDER_CANCELLATION must be positive.
+- ORDER_CONFIRMED must be negative.
+- ORDER_CANCELLED must be positive.
 - ADJUSTMENT_IN must be positive.
 - ADJUSTMENT_OUT must be negative.
 - Manual adjustment requires a non-empty reason.
@@ -403,7 +439,7 @@ The following equation must always hold for each movement:
 
 The application must update `products.stock` and insert the corresponding stock movement within the same transaction.
 
-## 4.6 Order Status History
+## 4.7 Order Status History
 
 Table name: `order_status_history`
 
@@ -425,9 +461,10 @@ Purpose: Maintains a historical record of order status transitions.
 - Initial status uses NULL as from_status and PENDING as to_status.
 - Every subsequent status transition must generate a history record.
 - Status history must follow the allowed order state transitions.
+- Cancellation transitions from PENDING or CONFIRMED must record a non-empty reason.
 - History records cannot be edited or deleted through normal application workflows.
 
-## 4.7 Idempotency Records
+## 4.8 Idempotency Records
 
 Table name: `idempotency_records`
 
@@ -473,6 +510,7 @@ The retention policy for idempotency records must be defined before implementing
 | users    | stock_movements      | One-to-Many               |
 | users    | order_status_history | One-to-Many               |
 | users    | idempotency_records  | One-to-Many               |
+| users    | sessions             | One-to-Many               |
 | orders   | order_items          | One-to-Many               |
 | products | order_items          | One-to-Many               |
 | products | stock_movements      | One-to-Many               |
@@ -495,13 +533,21 @@ Examples:
 
 ---
 
+## 5.3 Referential Integrity
+
+All foreign keys must reference existing records.
+
+Foreign key deletion behavior must protect historical business records through RESTRICT.
+
+---
+
 # 6. Database Constraints
 
 The following constraints must be implemented at the database level whenever possible.
 
 ## 6.1 Primary Key Constraints
 
-All seven tables must have UUID primary keys.
+All eight tables must have UUID primary keys.
 
 ## 6.2 Unique Constraints
 
@@ -512,6 +558,7 @@ All seven tables must have UUID primary keys.
 | orders              | order_number                          |
 | order_items         | order_id + product_id                 |
 | idempotency_records | user_id + operation + idempotency_key |
+| sessions            | token_hash                            |
 | stock_movements     | order_id + product_id + movement_type |
 
 ## 6.3 Check Constraints
@@ -530,8 +577,8 @@ All seven tables must have UUID primary keys.
 | stock_movements | quantity_after >= 0                                         |
 | stock_movements | quantity_after = quantity_before + quantity_delta           |
 | stock_movements | INITIAL_STOCK must have positive quantity_delta             |
-| stock_movements | ORDER_CONFIRMATION must have negative quantity_delta        |
-| stock_movements | ORDER_CANCELLATION must have positive quantity_delta        |
+| stock_movements | ORDER_CONFIRMED must have negative quantity_delta           |
+| stock_movements | ORDER_CANCELLED must have positive quantity_delta           |
 | stock_movements | ADJUSTMENT_IN must have positive quantity_delta             |
 | stock_movements | ADJUSTMENT_OUT must have negative quantity_delta            |
 | stock_movements | ADJUSTMENT_IN and ADJUSTMENT_OUT require a non-empty reason |
@@ -539,14 +586,6 @@ All seven tables must have UUID primary keys.
 Additional movement type and direction constraints should ensure that movement types use the correct sign.
 
 Reason requirements for manual adjustments must also be validated by the application and enforced at the database level where practical.
-
-## 6.4 Referential Integrity
-
-All foreign keys must reference existing records.
-
-Foreign key deletion behavior must protect historical business records through RESTRICT.
-
----
 
 # 7. Index Strategy
 
@@ -569,6 +608,8 @@ Indexes are designed around frequently used queries.
 | order_status_history | INDEX(order_id, created_at)                 | Order status history            |
 | idempotency_records  | UNIQUE(user_id, operation, idempotency_key) | Idempotency enforcement         |
 | idempotency_records  | INDEX(resource_id)                          | Operation result lookup         |
+| sessions             | UNIQUE(token_hash)                          | Session lookup                  |
+| sessions             | INDEX(expires_at)                           | Expired session cleanup         |
 
 Indexes must be evaluated against actual query patterns. Additional indexes should not be created without considering their write overhead.
 
@@ -591,11 +632,12 @@ Order creation must:
 3. Validate product existence and activity.
 4. Capture current product prices.
 5. Calculate order item subtotals and order total.
-6. Create the order with PENDING status.
-7. Create order items.
-8. Create the initial order status history record.
-9. Persist the idempotency result.
-10. Commit the transaction.
+6. Obtain the next value from the global PostgreSQL order number sequence and format it as `ORD-YYYY-000001`, using the UTC calendar year of order creation.
+7. Create the order with PENDING status and the generated order number.
+8. Create order items.
+9. Create the initial order status history record.
+10. Persist the idempotency result.
+11. Commit the transaction.
 
 Order creation must not deduct stock.
 
@@ -611,7 +653,7 @@ The operation must:
 4. Verify that all products are active.
 5. Verify the latest stock quantities.
 6. Deduct stock using concurrency-safe database operations.
-7. Create ORDER_CONFIRMATION stock movement records.
+7. Create ORDER_CONFIRMED stock movement records.
 8. Update the order status to CONFIRMED.
 9. Record the order status transition.
 10. Commit the transaction.
@@ -631,7 +673,7 @@ For CONFIRMED orders:
 - Start a database transaction.
 - Verify the order is eligible for cancellation.
 - Restore stock quantities.
-- Create ORDER_CANCELLATION movement records.
+- Create ORDER_CANCELLED movement records.
 - Update the order status to CANCELLED.
 - Create the corresponding status history record.
 - Commit the transaction.
@@ -644,7 +686,7 @@ The Inventory Application Service owns the transaction.
 
 The operation must:
 
-1. Validate the requested adjustment.
+1. Validate the requested adjustment and product existence; product activity status does not restrict adjustments.
 2. Require a non-empty reason.
 3. Read the latest stock quantity safely.
 4. Calculate the new stock quantity.
@@ -864,23 +906,24 @@ These improvements must be evaluated against future business requirements before
 
 # 15. Database Design Decisions Summary
 
-| Area                  | Decision                                  |
-| --------------------- | ----------------------------------------- |
-| Database              | PostgreSQL                                |
-| ORM                   | Prisma                                    |
-| Primary Key           | UUID                                      |
-| Monetary Data         | NUMERIC(15,2)                             |
-| Timestamp             | TIMESTAMPTZ                               |
-| JSON Data             | JSONB                                     |
-| Referential Integrity | Foreign Keys                              |
-| Deletion Policy       | RESTRICT                                  |
-| Inventory Balance     | products.stock                            |
-| Inventory History     | stock_movements                           |
-| Order History         | order_status_history                      |
-| Idempotency           | idempotency_records                       |
-| Transaction Strategy  | Atomic database transactions              |
-| Concurrency Control   | Conditional updates and row-level locking |
-| Audit Strategy        | Immutable historical records              |
+| Area                   | Decision                                  |
+| ---------------------- | ----------------------------------------- |
+| Database               | PostgreSQL                                |
+| ORM                    | Prisma                                    |
+| Primary Key            | UUID                                      |
+| Monetary Data          | NUMERIC(15,2)                             |
+| Timestamp              | TIMESTAMPTZ                               |
+| JSON Data              | JSONB                                     |
+| Referential Integrity  | Foreign Keys                              |
+| Deletion Policy        | RESTRICT                                  |
+| Inventory Balance      | products.stock                            |
+| Inventory History      | stock_movements                           |
+| Order History          | order_status_history                      |
+| Idempotency            | idempotency_records                       |
+| Authentication Session | PostgreSQL sessions with hashed tokens    |
+| Transaction Strategy   | Atomic database transactions              |
+| Concurrency Control    | Conditional updates and row-level locking |
+| Audit Strategy         | Immutable historical records              |
 
 ---
 
