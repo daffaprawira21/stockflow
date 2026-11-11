@@ -88,67 +88,71 @@ The administrator can:
 - FR-02: The system shall allow an authenticated administrator to log out.
 - FR-03: The system shall provide information about the currently authenticated administrator.
 - FR-04: The system shall protect business operations from unauthenticated access.
+- FR-05: The system shall maintain administrator sessions server-side in PostgreSQL with a fixed 12-hour expiration.
+- FR-06: The system shall revoke the active session when the administrator logs out.
+- FR-07: The system shall remove expired sessions after a successful login.
 
 ### 4.2 Product Management
 
-- FR-05: The administrator shall be able to create products.
-- FR-06: The administrator shall be able to view product lists and details.
-- FR-07: The administrator shall be able to update product information.
-- FR-08: The administrator shall be able to deactivate products.
-- FR-09: The system shall display current stock quantities.
-- FR-10: The system shall not permanently delete products that are referenced by historical records.
+- FR-08: The administrator shall be able to create products.
+- FR-09: The administrator shall be able to view product lists and details.
+- FR-10: The administrator shall be able to update product name, description, and price; SKU shall not be changed after product creation.
+- FR-11: The administrator shall be able to deactivate products.
+- FR-12: The system shall display current stock quantities.
+- FR-13: The system shall not permanently delete products that are referenced by historical records.
 
 ### 4.3 Inventory Management
 
-- FR-11: The system shall record positive initial stock as an INITIAL_STOCK movement.
-- FR-12: The administrator shall be able to increase stock through manual adjustments.
-- FR-13: The administrator shall be able to decrease stock through manual adjustments.
-- FR-14: Manual stock adjustments shall require a non-empty reason.
-- FR-15: The system shall record every stock change in stock_movements.
-- FR-16: The administrator shall be able to view stock movement history.
+- FR-14: The system shall record positive initial stock as an INITIAL_STOCK movement.
+- FR-15: The administrator shall be able to increase stock through manual adjustments.
+- FR-16: The administrator shall be able to decrease stock through manual adjustments.
+- FR-17: Manual stock adjustments shall require a non-empty reason.
+- FR-18: The administrator shall be able to adjust stock for inactive products; product inactivity must not block the adjustment.
+- FR-19: The system shall record every stock change in stock_movements.
+- FR-20: The administrator shall be able to view stock movement history.
 
 ### 4.4 Order Management
 
-- FR-17: The administrator shall be able to create orders.
-- FR-18: Newly created orders shall have PENDING status.
-- FR-19: Creating an order shall not deduct stock.
-- FR-20: The system shall consolidate duplicate product IDs in an order request by summing their quantities.
-- FR-21: The system shall obtain product prices from the database when creating an order.
-- FR-22: The system shall preserve the unit price snapshot recorded at order creation.
-- FR-23: The system shall calculate order totals on the server.
-- FR-24: The system shall support idempotency keys for order creation requests.
-- FR-25: The administrator shall be able to view order lists and details.
+- FR-21: The administrator shall be able to create orders.
+- FR-22: Newly created orders shall have PENDING status.
+- FR-23: Creating an order shall not deduct stock.
+- FR-24: The system shall consolidate duplicate product IDs in an order request by summing their quantities.
+- FR-25: The system shall obtain product prices from the database when creating an order.
+- FR-26: The system shall preserve the unit price snapshot recorded at order creation.
+- FR-27: The system shall calculate order totals on the server.
+- FR-28: The system shall support idempotency keys for order creation requests.
+- FR-29: The administrator shall be able to view order lists and details.
 
 ### 4.5 Order Confirmation
 
-- FR-26: The administrator shall be able to confirm a PENDING order.
-- FR-27: The system shall verify that every product in the order is active.
-- FR-28: The system shall verify sufficient current stock for every order item.
-- FR-29: The system shall deduct stock only when confirmation succeeds.
-- FR-30: Stock deduction, stock movement creation, and order status changes shall be atomic.
-- FR-31: Failed confirmation shall not leave partial stock changes.
-- FR-32: The system shall prevent duplicate confirmation from deducting stock more than once.
+- FR-30: The administrator shall be able to confirm a PENDING order.
+- FR-31: The system shall verify that every product in the order is active.
+- FR-32: The system shall verify sufficient current stock for every order item.
+- FR-33: The system shall deduct stock only when confirmation succeeds.
+- FR-34: Stock deduction, stock movement creation, and order status changes shall be atomic.
+- FR-35: Failed confirmation shall not leave partial stock changes.
+- FR-36: The system shall prevent duplicate confirmation from deducting stock more than once.
 
 ### 4.6 Order Cancellation and Shipping
 
-- FR-33: The administrator shall be able to cancel a PENDING order without changing stock.
-- FR-34: The administrator shall be able to cancel a CONFIRMED order before shipment.
-- FR-35: Cancelling a CONFIRMED order shall restore its reserved stock quantities.
-- FR-36: Stock restoration and cancellation status changes shall be atomic.
-- FR-37: The administrator shall be able to mark a CONFIRMED order as SHIPPED.
-- FR-38: The system shall reject normal cancellation of SHIPPED orders.
-- FR-39: Deactivating a product shall not prevent an already CONFIRMED order from being shipped.
+- FR-37: The administrator shall be able to cancel a PENDING order without changing stock; a non-empty cancellation reason is required.
+- FR-38: The administrator shall be able to cancel a CONFIRMED order before shipment; a non-empty cancellation reason is required.
+- FR-39: Cancelling a CONFIRMED order shall restore its reserved stock quantities.
+- FR-40: Stock restoration and cancellation status changes shall be atomic.
+- FR-41: The administrator shall be able to mark a CONFIRMED order as SHIPPED.
+- FR-42: The system shall reject normal cancellation of SHIPPED orders.
+- FR-43: Deactivating a product shall not prevent an already CONFIRMED order from being shipped.
 
 ### 4.7 Audit History
 
-- FR-40: The system shall record order status transitions in order_status_history.
-- FR-41: The system shall record the actor and timestamp for stock changes.
-- FR-42: Historical stock movement and order status records shall not be editable through normal application workflows.
+- FR-44: The system shall record order status transitions in order_status_history.
+- FR-45: The system shall record the actor and timestamp for stock changes.
+- FR-46: Historical stock movement and order status records shall not be editable through normal application workflows.
 
 ### 4.8 Dashboard
 
-- FR-43: The system shall display relevant inventory and order summaries.
-- FR-44: Dashboard information shall be derived from persisted application data.
+- FR-47: The system shall display relevant inventory and order summaries.
+- FR-48: Dashboard information shall be derived from persisted application data.
 
 ## 5. Business Rules
 
@@ -163,8 +167,8 @@ The administrator can:
 - BR-09: Confirmation must validate current stock for all order items.
 - BR-10: Confirmation must be atomic.
 - BR-11: Order item prices are snapshots taken at order creation.
-- BR-12: Pending orders can be cancelled without stock restoration.
-- BR-13: Confirmed orders can be cancelled before shipment, restoring stock.
+- BR-12: Pending orders can be cancelled without stock restoration and require a non-empty cancellation reason.
+- BR-13: Confirmed orders can be cancelled before shipment, restoring stock atomically and requiring a non-empty cancellation reason.
 - BR-14: Shipped orders cannot be cancelled through the normal MVP workflow.
 - BR-15: Inactive products cannot be used in new orders or pending order confirmation.
 - BR-16: Every stock change must produce a stock movement record.
@@ -172,6 +176,7 @@ The administrator can:
 - BR-18: Initial stock greater than zero must produce an INITIAL_STOCK movement.
 - BR-19: Zero initial stock does not require a zero-quantity movement.
 - BR-20: Manual stock adjustments require a reason.
+- BR-26: Manual stock adjustments are allowed for inactive products.
 - BR-21: Duplicate product IDs in an order request must be consolidated by summing quantities.
 - BR-22: A deactivated product does not prevent shipping an already CONFIRMED order.
 - BR-23: Repeated order creation requests with the same idempotency key and identical payload must not create duplicate orders.
@@ -185,7 +190,7 @@ The administrator can:
 - NFR-01: Passwords must be stored using secure password hashing.
 - NFR-02: Business endpoints must enforce server-side authentication and authorization.
 - NFR-03: Secrets must not be committed to version control.
-- NFR-04: Session handling must follow secure cookie and session practices.
+- NFR-04: Session tokens must use secure cookie practices, and sessions must be stored server-side in PostgreSQL with a fixed 12-hour expiration and immediate revocation on logout.
 - NFR-05: Client-supplied prices and actor identities must not be trusted.
 
 ### 6.2 Data Integrity

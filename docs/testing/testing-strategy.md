@@ -95,23 +95,32 @@ Testing includes:
 **Authentication**
 
 - Login and logout.
+- Passwords are stored using secure password hashing.
 - Authentication validation.
 - Access to protected endpoints.
+- Server-side session persistence and token hash validation.
+- Fixed 12-hour session expiration without activity-based extension.
+- Immediate session revocation on logout.
+- Expired session cleanup after successful login without deleting unexpired sessions.
 
 **Product Management**
 
 - Product creation and retrieval.
 - Product updates and deactivation.
-- SKU uniqueness.
+- SKU uniqueness and rejection of SKU changes after product creation.
+- Product price validation, including rejection of negative prices.
 - Product validation.
 
 **Inventory Management**
 
-- Initial stock.
-- Manual stock adjustments.
+- Initial stock, including recording positive initial stock as a movement and verifying that zero initial stock creates no movement.
+- Manual stock adjustments for active and inactive products.
 - Stock movement history.
 - Stock balance consistency.
 - Inventory validation.
+- Low-stock filtering at the supplied threshold, with zero stock included when `lowStock=0`.
+- No low-stock filtering when `lowStock` is omitted.
+- Reject invalid `lowStock` values, including negative and non-integer values.
 
 **Order Management**
 
@@ -121,6 +130,7 @@ Testing includes:
 - Order shipment.
 - Order status transitions.
 - Order item price snapshots.
+- Shipment of an already confirmed order after product deactivation.
 
 **Dashboard**
 
@@ -143,28 +153,7 @@ Testing includes:
 - Data consistency.
 - Concurrent inventory operations.
 
-### 3.2 Business-Critical Testing
-
-Testing must verify the following approved business rules:
-
-- Stock is deducted only when an order is confirmed.
-- Pending orders do not affect inventory.
-- Order confirmation validates product availability and stock.
-- Inventory deduction is atomic.
-- Failed confirmation does not partially update inventory.
-- Pending order cancellation does not change inventory.
-- Confirmed order cancellation before shipment restores inventory atomically.
-- Shipped orders cannot be cancelled through the normal cancellation workflow.
-- Inventory must never become negative.
-- Manual stock adjustments require a reason.
-- Inventory changes generate appropriate stock movement records.
-- Order status changes generate status history records.
-- Order item prices are snapshots of the prices at order creation.
-- Duplicate product IDs in an order payload are consolidated and their quantities summed.
-- Duplicate requests follow the approved idempotency rules.
-- Concurrent operations preserve inventory consistency.
-
-### 3.3 Out of Scope
+### 3.2 Out of Scope
 
 The following are excluded from MVP testing:
 
@@ -193,7 +182,9 @@ Verify rejection of invalid input, including:
 - Negative stock quantity.
 - Invalid order quantity.
 - Invalid status transition.
-- Missing cancellation reason.
+- Negative product price and negative initial stock.
+- Reject cancellation of PENDING orders when the reason is missing or empty.
+- Reject cancellation of CONFIRMED orders when the reason is missing or empty.
 - Invalid pagination parameters.
 
 ### 4.3 Error Handling Testing
@@ -216,6 +207,10 @@ Verify:
 - Unauthenticated access to protected endpoints.
 - Unauthorized access.
 - Invalid authentication credentials.
+- Session token is validated against its server-side session record; only a token hash is stored.
+- Expired session returns HTTP 401 `UNAUTHENTICATED`.
+- Logout revokes the current session and clears the cookie.
+- Login cleanup removes expired sessions but preserves unexpired sessions.
 - Input validation.
 - Secure cookie configuration.
 - Origin checks.
@@ -225,18 +220,33 @@ Login rate limiting is excluded from MVP and must be revisited before public pro
 
 CSRF token implementation is excluded from MVP. Cookie configuration and origin checks remain required. SameSite alone is insufficient.
 
-### 4.5 Transaction and Concurrency Testing
+### 4.5 Business-Critical Testing
 
-Verify:
+Business-critical testing verifies that the approved business rules hold across applicable unit, integration, and end-to-end scenarios. It is a cross-cutting priority, not a separate test level. Testing must verify:
 
-- Atomic inventory deduction.
-- Atomic inventory restoration.
-- Transaction rollback.
-- Concurrent order confirmation.
-- Concurrent inventory adjustments.
-- Duplicate requests.
-- Idempotency behavior.
-- Consistency between product stock and stock movement records.
+- New orders start as PENDING, and creating or cancelling a pending order does not change inventory.
+- Order confirmation rejects inactive products and insufficient stock; stock deduction occurs only on successful confirmation.
+- Confirmation failure does not partially change stock, movements, or order status.
+- Confirmed orders cancelled before shipment restore stock exactly once; shipped orders cannot be cancelled through the normal workflow.
+- Inventory never becomes negative.
+- Manual stock adjustments require a non-empty reason and are allowed for inactive products.
+- Every stock change produces an appropriate stock movement; every order status transition produces status history.
+- Order item prices are snapshots from order creation and are not changed by later product price updates.
+- Duplicate product IDs in an order request are consolidated and their quantities summed.
+- Idempotency follows the approved behavior for repeated keys and payloads, including conflicts, in-progress requests, and concurrent requests.
+- Deactivating a product does not prevent shipment of an already confirmed order.
+
+### 4.6 Transaction and Concurrency Testing
+
+Transaction and concurrency testing verifies atomicity, rollback, and consistent outcomes when operations overlap. Use integration tests with the dedicated PostgreSQL test database for applicable scenarios:
+
+- Order confirmation deducts stock, writes stock movements, and changes order status atomically.
+- Failed confirmation and insufficient stock for any item roll back all changes.
+- Confirmed-order cancellation restores stock, records movements, and changes status atomically.
+- Manual stock adjustment updates product stock and its movement record atomically.
+- Concurrent order confirmations and inventory adjustments preserve stock consistency and never produce negative inventory.
+- Concurrent requests using the same idempotency key do not create duplicate orders; verify same-payload replay, different-payload conflict, and in-progress behavior.
+- Product stock remains consistent with stock movement records after successful and failed operations.
 
 ---
 
@@ -401,7 +411,7 @@ Integration tests must cover critical business flows, including:
 
 E2E tests must cover primary MVP user flows:
 
-- Authentication.
+- Authentication, including session expiration and logout revocation.
 - Product management.
 - Inventory management.
 - Order creation.
@@ -445,7 +455,9 @@ Testing is complete for a release candidate when:
 - Test results have been recorded.
 - Requirements traceability has been reviewed.
 
-### 10.3 Defect Severity
+## 11. Defect Management
+
+### 11.1 Defect Severity
 
 **Critical:** Severe data integrity problems, such as negative inventory, inconsistent transaction results, or an unusable critical operation.
 
@@ -459,9 +471,7 @@ Critical and High defects must be resolved before release.
 
 ---
 
-## 11. Defect Management
-
-### 11.1 Defect Tracking
+### 11.2 Defect Tracking
 
 Defects must be tracked using GitHub Issues.
 
@@ -477,7 +487,7 @@ Each defect should include:
 - Related requirement or test case.
 - Test environment.
 
-### 11.2 Defect Lifecycle
+### 11.3 Defect Lifecycle
 
 1. Discover defect.
 2. Create GitHub Issue.
@@ -487,7 +497,7 @@ Each defect should include:
 6. Execute relevant regression tests.
 7. Close after successful verification.
 
-### 11.3 Regression Requirements
+### 11.4 Regression Requirements
 
 Reproducible defects should include regression tests.
 
