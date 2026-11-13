@@ -107,3 +107,19 @@ export function buildClearedSessionCookie(options: { secure?: boolean } = {}): S
     maxAge: 0,
   };
 }
+
+export function serializeSessionCookie(cookie: SessionCookie): string {
+  const parts = [
+    `${cookie.name}=${encodeURIComponent(cookie.value)}`,
+    `Path=${cookie.path}`,
+    `Max-Age=${cookie.maxAge}`,
+    'HttpOnly',
+    `SameSite=${cookie.sameSite === 'lax' ? 'Lax' : cookie.sameSite}`,
+  ];
+
+  if (cookie.secure) {
+    parts.push('Secure');
+  }
+
+  return parts.join('; ');
+}

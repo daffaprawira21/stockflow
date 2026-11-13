@@ -8,6 +8,7 @@ import {
   generateSessionToken,
   hashSessionToken,
   isSessionExpired,
+  serializeSessionCookie,
 } from '../../modules/auth/session';
 
 describe('session tokens', () => {
@@ -87,5 +88,13 @@ describe('session cookies', () => {
 
     expect(cookie.value).toBe('');
     expect(cookie.maxAge).toBe(0);
+  });
+
+  it('serializes the cookie header with hardened attributes', () => {
+    const serialized = serializeSessionCookie(buildSessionCookie('token-value', { secure: true }));
+
+    expect(serialized).toBe(
+      'stockflow_session=token-value; Path=/; Max-Age=43200; HttpOnly; SameSite=Lax; Secure',
+    );
   });
 });
