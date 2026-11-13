@@ -6,9 +6,9 @@ StockFlow is a full-stack inventory and order management system designed to help
 
 This project is being developed as a software engineering learning project and developer portfolio, with an emphasis on requirements engineering, system design, database integrity, testing, and deployment.
 
-> **Project status: Planning & Foundation**
+> **Project status: Sprint 1 complete**
 >
-> The requirements and initial technical designs have been reviewed. Application features are not yet implemented.
+> The database foundation and administrator authentication are implemented. Product, inventory, order, and dashboard features are not implemented yet.
 
 ## Getting Started
 
@@ -65,8 +65,20 @@ Then run the type check and tests:
 npm run typecheck
 npm test
 npm run test:integration
+npm run test:coverage
 npm run test:e2e
 ```
+
+`test:integration` and `test:coverage` use `stockflow_test` from `TEST_DATABASE_URL`; `test:e2e` starts its own server against the same test database. `db:reset:test` drops and rebuilds it when needed.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs two jobs on pushes to `main` and on pull requests, both backed by a PostgreSQL 17 service container:
+
+- **checks** — migrations, `typecheck`, lint, unit tests, integration tests, and the coverage gate (80% for `modules/auth`).
+- **e2e** — an isolated PostgreSQL database, Chromium, and the Playwright suite.
+
+Every job exports `DATABASE_URL`, `TEST_DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_COOKIE_NAME`, and `ALLOWED_ORIGINS`, because `lib/env.ts` validates them at startup.
 
 ## Table of Contents
 
@@ -265,8 +277,8 @@ This is the target structure and will be established incrementally during implem
 
 | Sprint   | Focus                                  | Status      |
 | -------- | -------------------------------------- | ----------- |
-| Sprint 0 | Project Foundation                     | In Progress |
-| Sprint 1 | Database Foundation and Authentication | Planned     |
+| Sprint 0 | Project Foundation                     | Completed   |
+| Sprint 1 | Database Foundation and Authentication | Completed   |
 | Sprint 2 | Product Management                     | Planned     |
 | Sprint 3 | Inventory Management                   | Planned     |
 | Sprint 4 | Order Management                       | Planned     |
