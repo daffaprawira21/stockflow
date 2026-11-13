@@ -31,6 +31,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view StockFlow.
 
+### Set up the database
+
+StockFlow uses PostgreSQL. On this machine PostgreSQL 17 runs from portable binaries, so it is not registered as a Windows service:
+
+```powershell
+$env:PGPASSWORD='postgres'
+& "$env:LOCALAPPDATA\stockflow\pgsql\bin\pg_ctl.exe" -D "$env:LOCALAPPDATA\stockflow\data" -l "$env:LOCALAPPDATA\stockflow\log\server.log" start
+```
+
+Stop it with the same command using `stop`. The cluster listens on `localhost:5432` with the `postgres` superuser and the `stockflow` and `stockflow_test` databases.
+
+Copy `.env.example` to `.env`, then apply migrations and seed the administrator:
+
+```bash
+npm run db:deploy
+npm run db:seed
+```
+
+Prisma is pinned to `7.10.1` on purpose. The `latest` npm tag currently points at an 8.0 release candidate that no longer provides `migrate` or `generate`, so always use the local scripts or `npx prisma@7.10.1`.
+
 ### Verify the application
 
 Install the Playwright browser once:
@@ -44,6 +64,7 @@ Then run the type check and tests:
 ```bash
 npm run typecheck
 npm test
+npm run test:integration
 npm run test:e2e
 ```
 

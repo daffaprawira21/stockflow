@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "node scripts/run-integration-tests.mjs",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
@@ -17,7 +18,8 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:reset:test": "node scripts/reset-test-db.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
