@@ -1,2 +1,22 @@
-node_modules
+node_modules/
 .next/
+out/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Test and build artifacts
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+
+# Generated Prisma client
+/lib/generated/prisma/
+
+# Local tooling state
+.claude/
+.commandcode/
