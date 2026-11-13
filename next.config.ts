@@ -1,9 +1,7 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  typedRoutes: true,
+};
 
 export default nextConfig;
-
-module.exports = {
-  allowedDevOrigins: ['192.168.56.1'],
-};
