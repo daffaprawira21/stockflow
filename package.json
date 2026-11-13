@@ -13,6 +13,7 @@
     "test:integration": "node scripts/run-integration-tests.mjs",
     "test:coverage": "node scripts/run-coverage.mjs",
     "test:e2e": "playwright test",
+    "perf:budget": "node scripts/check-performance-budget.mjs",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
     "db:generate": "prisma generate",

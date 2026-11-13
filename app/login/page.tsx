@@ -28,7 +28,6 @@ export default function LoginPage() {
       }
 
       router.replace('/');
-      router.refresh();
     } catch {
       setError('Unable to sign in. Please try again.');
     } finally {
