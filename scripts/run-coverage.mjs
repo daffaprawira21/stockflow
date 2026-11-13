@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process';
 import { config } from 'dotenv';
+import { runVitest } from './vitest-runner.mjs';
 
 config();
 
@@ -20,18 +20,10 @@ if (testUrl === process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const result = spawnSync(
-  'npx',
-  ['vitest', 'run', '--coverage', '--config', 'vitest.coverage.config.ts'],
-  {
-    stdio: 'inherit',
-    shell: true,
-    env: {
-      ...process.env,
-      DATABASE_URL: testUrl,
-      NODE_ENV: 'test',
-    },
-  },
-);
+const status = runVitest(['run', '--coverage', '--config', 'vitest.coverage.config.ts'], {
+  ...process.env,
+  DATABASE_URL: testUrl,
+  NODE_ENV: 'test',
+});
 
-process.exit(result.status ?? 1);
+process.exit(status);
