@@ -86,6 +86,20 @@ function sessionCookieName(): string {
   return process.env.SESSION_COOKIE_NAME ?? 'stockflow_session';
 }
 
+function cookieSecureByDefault(): boolean {
+  const override = process.env.SESSION_COOKIE_SECURE;
+
+  if (override === 'true') {
+    return true;
+  }
+
+  if (override === 'false') {
+    return false;
+  }
+
+  return process.env.NODE_ENV === 'production';
+}
+
 export function buildSessionCookie(
   token: string,
   options: { secure?: boolean } = {},
@@ -94,7 +108,7 @@ export function buildSessionCookie(
     name: sessionCookieName(),
     value: token,
     httpOnly: true,
-    secure: options.secure ?? process.env.NODE_ENV === 'production',
+    secure: options.secure ?? cookieSecureByDefault(),
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,

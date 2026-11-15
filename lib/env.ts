@@ -9,6 +9,10 @@ const envSchema = z.object({
     .string()
     .min(12, 'ADMIN_PASSWORD must be at least 12 characters'),
   SESSION_COOKIE_NAME: z.string().min(1).default('stockflow_session'),
+  SESSION_COOKIE_SECURE: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true')),
   ALLOWED_ORIGINS: z.string().optional(),
   ALLOW_SEED: z
     .enum(['true', 'false'])

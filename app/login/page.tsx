@@ -3,6 +3,35 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
+type ErrorResponse = {
+  error?: {
+    code?: string;
+    details?: Array<{ origin?: string | null }>;
+  };
+};
+
+const FALLBACK_ERROR = 'Unable to sign in. Please try again.';
+
+function errorMessage(body: ErrorResponse | null): string {
+  switch (body?.error?.code) {
+    case 'UNAUTHENTICATED':
+      return 'Invalid email or password';
+    case 'VALIDATION_ERROR':
+      return 'Please enter a valid email and password';
+    case 'FORBIDDEN': {
+      const origin = body?.error?.details?.[0]?.origin;
+
+      return origin
+        ? `Sign-in was blocked for ${origin}. Add it to ALLOWED_ORIGINS in .env.`
+        : 'Sign-in was blocked for this address. Add it to ALLOWED_ORIGINS in .env.';
+    }
+    case 'INTERNAL_SERVER_ERROR':
+      return 'The server could not complete the sign-in. Check the database connection.';
+    default:
+      return FALLBACK_ERROR;
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -23,13 +52,15 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        setError('Invalid email or password');
+        const body = (await response.json().catch(() => null)) as ErrorResponse | null;
+
+        setError(errorMessage(body));
         return;
       }
 
       router.replace('/');
     } catch {
-      setError('Unable to sign in. Please try again.');
+      setError(FALLBACK_ERROR);
     } finally {
       setPending(false);
     }

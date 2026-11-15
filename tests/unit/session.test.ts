@@ -79,6 +79,16 @@ describe('session cookies', () => {
     expect(buildSessionCookie('token').secure).toBe(true);
   });
 
+  it('lets SESSION_COOKIE_SECURE override the NODE_ENV default', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SESSION_COOKIE_SECURE', 'false');
+    expect(buildSessionCookie('token').secure).toBe(false);
+
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('SESSION_COOKIE_SECURE', 'true');
+    expect(buildSessionCookie('token').secure).toBe(true);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });

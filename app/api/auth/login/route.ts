@@ -10,7 +10,9 @@ import { buildSessionCookie, serializeSessionCookie } from '@/modules/auth/sessi
 export async function POST(request: Request) {
   try {
     if (!isOriginAllowed(request, allowedOrigins)) {
-      throw new ApiError('FORBIDDEN');
+      throw new ApiError('FORBIDDEN', undefined, [
+        { origin: request.headers.get('origin') },
+      ]);
     }
 
     let payload: unknown;
