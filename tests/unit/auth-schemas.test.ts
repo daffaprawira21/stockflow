@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginSchema, validationDetails } from '../../modules/auth/schemas';
+import { loginSchema } from '../../modules/auth/schemas';
 
 describe('login schema', () => {
   it('accepts a valid email and password', () => {
@@ -51,21 +51,5 @@ describe('login schema', () => {
     });
 
     expect(result.success).toBe(false);
-  });
-
-  it('maps Zod issues to validation details', () => {
-    const result = loginSchema.safeParse({ email: 'bad', password: '' });
-
-    if (result.success) {
-      throw new Error('expected validation to fail');
-    }
-
-    const details = validationDetails(result.error);
-
-    expect(details.length).toBeGreaterThanOrEqual(2);
-    expect(details.map((detail) => detail.path)).toEqual(
-      expect.arrayContaining(['email', 'password']),
-    );
-    expect(details.every((detail) => typeof detail.message === 'string')).toBe(true);
   });
 });

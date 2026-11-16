@@ -15,14 +15,19 @@ if (!testUrl) {
   fail('TEST_DATABASE_URL is not set.');
 }
 
-if (!testUrl.includes('stockflow_test')) {
+let testDatabaseName;
+try {
+  testDatabaseName = new URL(testUrl).pathname.replace(/^\//, '');
+} catch {
+  fail('TEST_DATABASE_URL must be a valid PostgreSQL URL.');
+}
+
+if (testDatabaseName !== 'stockflow_test') {
   fail('TEST_DATABASE_URL must point at the stockflow_test database.');
 }
 
-if (testUrl === process.env.DATABASE_URL) {
-  fail('TEST_DATABASE_URL must differ from DATABASE_URL.');
-}
-
+// E2E server, migrations, and seed must all target the dedicated test database,
+// regardless of DATABASE_URL in the developer's .env file.
 const env = { ...process.env, DATABASE_URL: testUrl };
 
 function run(command, args) {
