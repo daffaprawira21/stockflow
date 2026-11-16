@@ -6,9 +6,9 @@ StockFlow is a full-stack inventory and order management system designed to help
 
 This project is being developed as a software engineering learning project and developer portfolio, with an emphasis on requirements engineering, system design, database integrity, testing, and deployment.
 
-> **Project status: Planning & Foundation**
+> **Project status: Sprint 1 complete**
 >
-> The requirements and initial technical designs have been reviewed. Application features are not yet implemented.
+> The database foundation and administrator authentication are implemented. Product, inventory, order, and dashboard features are not implemented yet.
 
 ## Getting Started
 
@@ -31,6 +31,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view StockFlow.
 
+### Set up the database
+
+StockFlow uses PostgreSQL. On this machine PostgreSQL 17 runs from portable binaries, so it is not registered as a Windows service:
+
+```powershell
+$env:PGPASSWORD='postgres'
+& "$env:LOCALAPPDATA\stockflow\pgsql\bin\pg_ctl.exe" -D "$env:LOCALAPPDATA\stockflow\data" -l "$env:LOCALAPPDATA\stockflow\log\server.log" start
+```
+
+Stop it with the same command using `stop`. The cluster listens on `localhost:5432` with the `postgres` superuser and the `stockflow` and `stockflow_test` databases.
+
+Copy `.env.example` to `.env`, then apply migrations and seed the administrator:
+
+```bash
+npm run db:deploy
+npm run db:seed
+```
+
+Prisma is pinned to `7.10.1` on purpose. The `latest` npm tag currently points at an 8.0 release candidate that no longer provides `migrate` or `generate`, so always use the local scripts or `npx prisma@7.10.1`.
+
 ### Verify the application
 
 Install the Playwright browser once:
@@ -44,8 +64,21 @@ Then run the type check and tests:
 ```bash
 npm run typecheck
 npm test
+npm run test:integration
+npm run test:coverage
 npm run test:e2e
 ```
+
+`test:integration` and `test:coverage` use `stockflow_test` from `TEST_DATABASE_URL`; `test:e2e` starts its own server against the same test database. `db:reset:test` drops and rebuilds it when needed.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs two jobs on pushes to `main` and on pull requests, both backed by a PostgreSQL 17 service container:
+
+- **checks** — migrations, `typecheck`, lint, unit tests, integration tests, and the coverage gate (80% for `modules/auth`).
+- **e2e** — an isolated PostgreSQL database, Chromium, and the Playwright suite.
+
+Every job exports `DATABASE_URL`, `TEST_DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_COOKIE_NAME`, and `ALLOWED_ORIGINS`, because `lib/env.ts` validates them at startup.
 
 ## Table of Contents
 
@@ -244,8 +277,8 @@ This is the target structure and will be established incrementally during implem
 
 | Sprint   | Focus                                  | Status      |
 | -------- | -------------------------------------- | ----------- |
-| Sprint 0 | Project Foundation                     | In Progress |
-| Sprint 1 | Database Foundation and Authentication | Planned     |
+| Sprint 0 | Project Foundation                     | Completed   |
+| Sprint 1 | Database Foundation and Authentication | Completed   |
 | Sprint 2 | Product Management                     | Planned     |
 | Sprint 3 | Inventory Management                   | Planned     |
 | Sprint 4 | Order Management                       | Planned     |

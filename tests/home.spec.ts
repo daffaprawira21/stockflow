@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-test('visitor sees the StockFlow starting page', async ({ page }) => {
-  const response = await page.goto('/');
+test('visitor without a session is redirected to the login page', async ({ page }) => {
+  await page.goto('/');
 
-  expect(response?.ok()).toBe(true);
-  await expect(page.getByRole('heading', { name: 'Welcome to StockFlow' })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Sign in to StockFlow' })).toBeVisible();
+  await expect(page.getByLabel('Email')).toBeVisible();
+  await expect(page.getByLabel('Password')).toBeVisible();
 });
