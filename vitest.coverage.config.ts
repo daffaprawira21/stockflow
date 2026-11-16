@@ -15,7 +15,7 @@ export default defineConfig({
     hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
-      include: ['modules/auth/**/*.ts'],
+      include: ['modules/auth/**/*.ts', 'modules/products/**/*.ts', 'modules/inventory/**/*.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
         statements: 80,
