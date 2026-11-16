@@ -72,6 +72,25 @@ export async function createProduct(
   }
 }
 
+export async function getProductById(prisma: ProductListClient, id: string): Promise<ListedProduct> {
+  const product = await prisma.product.findUnique({ where: { id } });
+  if (!product) {
+    throw new ApiError('RESOURCE_NOT_FOUND');
+  }
+
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    description: product.description,
+    price: toMoneyString(product.price),
+    stock: product.stock,
+    isActive: product.isActive,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+  };
+}
+
 export async function listProducts(prisma: ProductListClient, query: ProductListQuery) {
   const where: Prisma.ProductWhereInput = {
     ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
