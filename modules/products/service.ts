@@ -3,7 +3,7 @@ import { ApiError } from '../../lib/api/errors';
 import { toMoneyString } from '../../lib/money';
 import { recordInitialStock } from '../inventory/service';
 import type { ProductListQuery } from './list-query';
-import type { CreateProductInput } from './schemas';
+import type { CreateProductInput, UpdateProductInput } from './schemas';
 
 type ProductTransaction = Prisma.TransactionClient;
 type ProductClient = Pick<Prisma.TransactionClient, 'product'> & {
@@ -19,6 +19,8 @@ export type CreatedProduct = {
   stock: number;
   isActive: boolean;
 };
+
+export type UpdatedProduct = ListedProduct;
 
 export type ListedProduct = CreatedProduct & {
   description: string | null;
@@ -66,6 +68,41 @@ export async function createProduct(
       error.code === 'P2002'
     ) {
       throw new ApiError('SKU_ALREADY_EXISTS');
+    }
+
+    throw error;
+  }
+}
+
+export async function updateProduct(
+  prisma: ProductListClient,
+  id: string,
+  input: UpdateProductInput,
+): Promise<UpdatedProduct> {
+  try {
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        ...(input.name === undefined ? {} : { name: input.name }),
+        ...(input.description === undefined ? {} : { description: input.description }),
+        ...(input.price === undefined ? {} : { price: new Prisma.Decimal(input.price) }),
+      },
+    });
+
+    return {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      price: toMoneyString(product.price),
+      stock: product.stock,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new ApiError('RESOURCE_NOT_FOUND');
     }
 
     throw error;

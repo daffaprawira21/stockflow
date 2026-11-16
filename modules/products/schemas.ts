@@ -22,3 +22,11 @@ export const createProductSchema = z.object({
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+
+export const updateProductSchema = z.object({
+  name: z.string().trim().min(1).max(255).optional(),
+  description: z.string().nullable().optional(),
+  price: z.string().refine(isValidPrice, 'Price must be a nonnegative decimal with at most two decimal places').optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, 'At least one field must be provided');
+
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
