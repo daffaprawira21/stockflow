@@ -1,13 +1,15 @@
-import { Prisma } from '../../lib/generated/prisma/client';
+import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { toMoneyString } from '../../lib/money';
 import { recordInitialStock } from '../inventory/service';
+import type { ProductListQuery } from './list-query';
 import type { CreateProductInput } from './schemas';
 
 type ProductTransaction = Prisma.TransactionClient;
 type ProductClient = Pick<Prisma.TransactionClient, 'product'> & {
   $transaction<T>(callback: (tx: ProductTransaction) => Promise<T>): Promise<T>;
 };
+type ProductListClient = Pick<PrismaClient, 'product'>;
 
 export type CreatedProduct = {
   id: string;
@@ -16,6 +18,12 @@ export type CreatedProduct = {
   price: string;
   stock: number;
   isActive: boolean;
+};
+
+export type ListedProduct = CreatedProduct & {
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export async function createProduct(
@@ -62,4 +70,46 @@ export async function createProduct(
 
     throw error;
   }
+}
+
+export async function listProducts(prisma: ProductListClient, query: ProductListQuery) {
+  const where: Prisma.ProductWhereInput = {
+    ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
+    ...(query.search ? {
+      OR: [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { sku: { contains: query.search, mode: 'insensitive' } },
+      ],
+    } : {}),
+  };
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+    { [query.sortBy]: query.sortOrder },
+    { id: 'asc' },
+  ];
+  const skip = (query.page - 1) * query.limit;
+
+  const [products, totalItems] = await Promise.all([
+    prisma.product.findMany({ where, orderBy, skip, take: query.limit }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    data: products.map((product): ListedProduct => ({
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      price: toMoneyString(product.price),
+      stock: product.stock,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    })),
+    meta: {
+      page: query.page,
+      limit: query.limit,
+      totalItems,
+      totalPages: Math.ceil(totalItems / query.limit),
+    },
+  };
 }
