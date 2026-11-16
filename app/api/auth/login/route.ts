@@ -1,9 +1,10 @@
 import { ApiError } from '@/lib/api/errors';
 import { isOriginAllowed } from '@/lib/api/origin';
 import { jsonFromError, jsonSuccess } from '@/lib/api/response';
+import { validationDetails } from '@/lib/api/validation';
 import prisma from '@/lib/db';
 import { allowedOrigins } from '@/lib/env';
-import { loginSchema, validationDetails } from '@/modules/auth/schemas';
+import { loginSchema } from '@/modules/auth/schemas';
 import { login } from '@/modules/auth/service';
 import { buildSessionCookie, serializeSessionCookie } from '@/modules/auth/session';
 
