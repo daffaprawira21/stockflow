@@ -60,11 +60,11 @@ Treat approved documentation as the source of truth. If documents conflict, or i
 
 ## Git Safety
 
-The developer manages Git operations manually.
+The developer normally manages Git operations manually. They may delegate specific Git operations explicitly in a request.
 
-- Do not commit or push unless explicitly requested.
+- Do not commit or push unless explicitly requested or explicitly delegated for the current task.
 - Never run destructive Git commands such as reset, clean, or force-push without explicit approval.
-- Preserve existing developer changes.
+- Preserve existing developer changes; stage and commit only files in the delegated task scope.
 - Explain the purpose of suggested Git commands.
 
 ## Task Completion
