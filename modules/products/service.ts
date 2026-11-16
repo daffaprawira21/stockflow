@@ -74,6 +74,43 @@ export async function createProduct(
   }
 }
 
+export async function deactivateProduct(
+  prisma: ProductListClient,
+  id: string,
+): Promise<ListedProduct> {
+  try {
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+
+    const product = existing.isActive
+      ? await prisma.product.update({
+          where: { id },
+          data: { isActive: false },
+        })
+      : existing;
+
+    return {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      price: toMoneyString(product.price),
+      stock: product.stock,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+
+    throw error;
+  }
+}
+
 export async function updateProduct(
   prisma: ProductListClient,
   id: string,
