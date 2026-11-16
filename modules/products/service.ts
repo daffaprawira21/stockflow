@@ -28,6 +28,22 @@ export type ListedProduct = CreatedProduct & {
   updatedAt: Date;
 };
 
+type ProductRecord = Prisma.ProductModel;
+
+function toListedProduct(product: ProductRecord): ListedProduct {
+  return {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    description: product.description,
+    price: toMoneyString(product.price),
+    stock: product.stock,
+    isActive: product.isActive,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+  };
+}
+
 export async function createProduct(
   prisma: ProductClient,
   performedBy: string,
@@ -91,17 +107,7 @@ export async function deactivateProduct(
         })
       : existing;
 
-    return {
-      id: product.id,
-      sku: product.sku,
-      name: product.name,
-      description: product.description,
-      price: toMoneyString(product.price),
-      stock: product.stock,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    };
+    return toListedProduct(product);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       throw new ApiError('RESOURCE_NOT_FOUND');
@@ -126,17 +132,7 @@ export async function updateProduct(
       },
     });
 
-    return {
-      id: product.id,
-      sku: product.sku,
-      name: product.name,
-      description: product.description,
-      price: toMoneyString(product.price),
-      stock: product.stock,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    };
+    return toListedProduct(product);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       throw new ApiError('RESOURCE_NOT_FOUND');
@@ -152,17 +148,7 @@ export async function getProductById(prisma: ProductListClient, id: string): Pro
     throw new ApiError('RESOURCE_NOT_FOUND');
   }
 
-  return {
-    id: product.id,
-    sku: product.sku,
-    name: product.name,
-    description: product.description,
-    price: toMoneyString(product.price),
-    stock: product.stock,
-    isActive: product.isActive,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
-  };
+  return toListedProduct(product);
 }
 
 export async function listProducts(prisma: ProductListClient, query: ProductListQuery) {
@@ -187,17 +173,7 @@ export async function listProducts(prisma: ProductListClient, query: ProductList
   ]);
 
   return {
-    data: products.map((product): ListedProduct => ({
-      id: product.id,
-      sku: product.sku,
-      name: product.name,
-      description: product.description,
-      price: toMoneyString(product.price),
-      stock: product.stock,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    })),
+    data: products.map(toListedProduct),
     meta: {
       page: query.page,
       limit: query.limit,
