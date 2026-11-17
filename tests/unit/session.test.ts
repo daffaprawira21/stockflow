@@ -72,6 +72,7 @@ describe('session cookies', () => {
   });
 
   it('only marks the cookie secure in production by default', () => {
+    vi.stubEnv('SESSION_COOKIE_SECURE', '');
     vi.stubEnv('NODE_ENV', 'development');
     expect(buildSessionCookie('token').secure).toBe(false);
 
