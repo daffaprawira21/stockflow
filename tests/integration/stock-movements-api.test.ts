@@ -54,6 +54,42 @@ describe('GET /api/inventory/:productId/movements', () => {
     expect(body.meta).toEqual({ page: 1, limit: 10, totalItems: 2, totalPages: 1 });
   });
 
+  it('orders equal-timestamp movements by ascending ID across pages', async () => {
+    const admin = await createTestAdmin(db);
+    const token = (await createSession(db, admin.id)).token;
+    const product = await createTestProduct(db, { stock: 2 });
+    const timestamp = new Date('2026-11-17T09:00:00.000Z');
+
+    await db.stockMovement.create({ data: {
+      id: 'f0000000-0000-4000-8000-000000000001',
+      productId: product.id, performedBy: admin.id, movementType: 'ADJUSTMENT_IN',
+      quantityDelta: 1, quantityBefore: 0, quantityAfter: 1, reason: 'received', createdAt: timestamp,
+    } });
+    await db.stockMovement.create({ data: {
+      id: 'f0000000-0000-4000-8000-000000000002',
+      productId: product.id, performedBy: admin.id, movementType: 'ADJUSTMENT_IN',
+      quantityDelta: 1, quantityBefore: 1, quantityAfter: 2, reason: 'received', createdAt: timestamp,
+    } });
+
+    const pageOne = await stockMovementsRoute(request(product.id, '?page=1&limit=1', token), {
+      params: Promise.resolve({ productId: product.id }),
+    });
+    const pageTwo = await stockMovementsRoute(request(product.id, '?page=2&limit=1', token), {
+      params: Promise.resolve({ productId: product.id }),
+    });
+    const first = await pageOne.json();
+    const second = await pageTwo.json();
+
+    expect(first.data.map((movement: { id: string }) => movement.id)).toEqual([
+      'f0000000-0000-4000-8000-000000000001',
+    ]);
+    expect(second.data.map((movement: { id: string }) => movement.id)).toEqual([
+      'f0000000-0000-4000-8000-000000000002',
+    ]);
+    expect(first.meta).toEqual({ page: 1, limit: 1, totalItems: 2, totalPages: 2 });
+    expect(second.meta).toEqual({ page: 2, limit: 1, totalItems: 2, totalPages: 2 });
+  });
+
   it('filters by movement type and paginates deterministically', async () => {
     const admin = await createTestAdmin(db);
     const token = (await createSession(db, admin.id)).token;
