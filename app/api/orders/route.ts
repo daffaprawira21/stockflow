@@ -1,10 +1,43 @@
 import { ApiError } from '@/lib/api/errors';
 import { requireAdmin } from '@/lib/api/guard';
-import { jsonFromError, jsonPaginated } from '@/lib/api/response';
+import { isOriginAllowed } from '@/lib/api/origin';
+import { jsonFromError, jsonPaginated, jsonSuccess } from '@/lib/api/response';
 import { validationDetails } from '@/lib/api/validation';
 import prisma from '@/lib/db';
-import { orderListQuerySchema } from '@/modules/orders/schemas';
-import { listOrders } from '@/modules/orders/service';
+import { allowedOrigins } from '@/lib/env';
+import { createOrderSchema, orderListQuerySchema } from '@/modules/orders/schemas';
+import { createOrder, listOrders } from '@/modules/orders/service';
+
+export async function POST(request: Request) {
+  try {
+    if (!isOriginAllowed(request, allowedOrigins)) {
+      throw new ApiError('FORBIDDEN', undefined, [{ origin: request.headers.get('origin') }]);
+    }
+
+    const admin = await requireAdmin(prisma, request);
+    const idempotencyKey = request.headers.get('idempotency-key')?.trim();
+    if (!idempotencyKey || idempotencyKey.length > 255) {
+      throw new ApiError('VALIDATION_ERROR', 'Idempotency-Key header must contain 1 to 255 characters');
+    }
+
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      throw new ApiError('VALIDATION_ERROR', 'Request body must be valid JSON');
+    }
+
+    const parsed = createOrderSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsed.error));
+    }
+
+    const result = await createOrder(prisma, admin.id, idempotencyKey, parsed.data);
+    return jsonSuccess(result.order, { status: result.replayed ? 200 : 201 });
+  } catch (error) {
+    return jsonFromError(error);
+  }
+}
 
 export async function GET(request: Request) {
   try {

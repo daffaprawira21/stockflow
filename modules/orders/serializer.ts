@@ -23,6 +23,38 @@ type OrderDetailRecord = Prisma.OrderGetPayload<{
   };
 }>;
 
+export type CreatedOrder = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  items: {
+    productId: string;
+    quantity: number;
+    unitPrice: string;
+    subtotal: string;
+  }[];
+  totalAmount: string;
+};
+
+export type CreatedOrderRecord = Prisma.OrderGetPayload<{
+  include: { items: true };
+}>;
+
+export function serializeCreatedOrder(order: CreatedOrderRecord): CreatedOrder {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    items: order.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitPrice: toMoneyString(item.unitPrice),
+      subtotal: toMoneyString(item.subtotal),
+    })),
+    totalAmount: toMoneyString(order.totalAmount),
+  };
+}
+
 export function serializeOrderDetail(order: OrderDetailRecord) {
   return {
     id: order.id,

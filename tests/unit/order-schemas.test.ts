@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orderListQuerySchema, orderIdSchema } from '../../modules/orders/schemas';
+import { createOrderSchema, orderListQuerySchema, orderIdSchema } from '../../modules/orders/schemas';
 
 describe('order query schemas', () => {
   it('uses newest-first pagination defaults', () => {
@@ -38,5 +38,22 @@ describe('order query schemas', () => {
   it('validates order identifiers as UUIDs', () => {
     expect(orderIdSchema.safeParse('00000000-0000-4000-8000-000000000001').success).toBe(true);
     expect(orderIdSchema.safeParse('not-a-uuid').success).toBe(false);
+  });
+
+  it('accepts a non-empty order item list with UUIDs and positive integer quantities', () => {
+    expect(createOrderSchema.parse({
+      items: [{ productId: '00000000-0000-4000-8000-000000000001', quantity: 2 }],
+    })).toEqual({
+      items: [{ productId: '00000000-0000-4000-8000-000000000001', quantity: 2 }],
+    });
+  });
+
+  it.each([
+    { items: [] },
+    { items: [{ productId: 'not-a-uuid', quantity: 1 }] },
+    { items: [{ productId: '00000000-0000-4000-8000-000000000001', quantity: 0 }] },
+    { items: [{ productId: '00000000-0000-4000-8000-000000000001', quantity: 1.5 }] },
+  ])('rejects invalid create-order payload %#', (payload) => {
+    expect(createOrderSchema.safeParse(payload).success).toBe(false);
   });
 });
