@@ -30,7 +30,7 @@ export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
 export const createOrderSchema = z.object({
   items: z.array(z.object({
     productId: z.uuid(),
-    quantity: z.number().int().positive(),
+    quantity: z.number().int().min(1).max(2_147_483_647),
   })).min(1),
 });
 

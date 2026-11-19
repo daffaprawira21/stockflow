@@ -58,7 +58,7 @@ beforeEach(() => {
   orderFindMany.mockResolvedValue([]);
   orderCount.mockResolvedValue(0);
   transactionQueryRaw
-    .mockResolvedValueOnce([{ locked: true }])
+    .mockResolvedValueOnce([{ scopeLocked: true, payloadLocked: true }])
     .mockResolvedValueOnce([{ value: 1n }]);
   idempotencyFindUnique.mockResolvedValue(null);
   idempotencyCreate.mockResolvedValue({});

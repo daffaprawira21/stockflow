@@ -20,16 +20,22 @@ export type CreateOrderResult = {
 
 const CREATE_ORDER_OPERATION = 'CREATE_ORDER';
 
+const MAX_POSTGRES_INTEGER = 2_147_483_647;
+
 function consolidateItems(items: CreateOrderInput['items']) {
   const quantities = new Map<string, number>();
   for (const item of items) {
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+    const quantity = (quantities.get(item.productId) ?? 0) + item.quantity;
+    if (quantity > MAX_POSTGRES_INTEGER) {
+      throw new ApiError('VALIDATION_ERROR', 'Consolidated item quantity exceeds the allowed maximum');
+    }
+    quantities.set(item.productId, quantity);
   }
   return [...quantities.entries()].map(([productId, quantity]) => ({ productId, quantity }));
 }
 
-function requestHash(items: CreateOrderInput['items']): string {
-  const canonicalItems = consolidateItems(items).sort((left, right) =>
+function requestHash(items: ReturnType<typeof consolidateItems>): string {
+  const canonicalItems = [...items].sort((left, right) =>
     left.productId.localeCompare(right.productId),
   );
   return createHash('sha256').update(JSON.stringify(canonicalItems)).digest('hex');
@@ -69,15 +75,25 @@ export async function createOrder(
   idempotencyKey: string,
   input: CreateOrderInput,
 ): Promise<CreateOrderResult> {
-  const hash = requestHash(input.items);
+  const items = consolidateItems(input.items);
+  const hash = requestHash(items);
 
   return prisma.$transaction(async (tx) => {
-    const [lock] = await tx.$queryRaw<{ locked: boolean }[]>`
-      SELECT pg_try_advisory_xact_lock(
-        hashtextextended(${`${createdBy}:${CREATE_ORDER_OPERATION}:${idempotencyKey}`}, 0)
-      ) AS "locked"
+    const idempotencyScope = `${createdBy}:${CREATE_ORDER_OPERATION}:${idempotencyKey}`;
+    const [locks] = await tx.$queryRaw<{
+      scopeLocked: boolean;
+      payloadLocked: boolean;
+    }[]>`
+      SELECT
+        pg_try_advisory_xact_lock(hashtextextended(${idempotencyScope}, 0)) AS "scopeLocked",
+        pg_try_advisory_xact_lock(hashtextextended(${`${idempotencyScope}:${hash}`}, 0)) AS "payloadLocked"
     `;
-    if (!lock?.locked) {
+    if (!locks?.scopeLocked) {
+      throw new ApiError(
+        locks?.payloadLocked ? 'IDEMPOTENCY_CONFLICT' : 'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      );
+    }
+    if (!locks.payloadLocked) {
       throw new ApiError('IDEMPOTENCY_REQUEST_IN_PROGRESS');
     }
 
@@ -95,10 +111,9 @@ export async function createOrder(
       if (existing.requestHash !== hash) {
         throw new ApiError('IDEMPOTENCY_CONFLICT');
       }
-      return { order: existing.responseBody as unknown as CreatedOrder, replayed: true };
+      return { order: serializeCreatedOrder(existing.order), replayed: true };
     }
 
-    const items = consolidateItems(input.items);
     const products = await tx.product.findMany({
       where: { id: { in: items.map((item) => item.productId) } },
       select: { id: true, price: true, isActive: true },

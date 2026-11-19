@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { POST as createOrderRoute } from '../../app/api/orders/route';
 import prisma from '../../lib/db';
@@ -161,25 +162,106 @@ describe('POST /api/orders', () => {
     expect(forbidden.status).toBe(403);
   });
 
+  it('replays a semantically identical payload without requiring identical JSON order', async () => {
+    const { token } = await adminToken();
+    const first = await createTestProduct(db, { price: '10.00' });
+    const second = await createTestProduct(db, { price: '20.00' });
+
+    const initial = await createOrderRoute(createRequest(JSON.stringify({
+      items: [
+        { productId: first.id, quantity: 1 },
+        { productId: second.id, quantity: 1 },
+        { productId: first.id, quantity: 1 },
+      ],
+    }), { token, idempotencyKey: 'canonical-replay' }));
+    const replay = await createOrderRoute(createRequest(JSON.stringify({
+      items: [
+        { productId: second.id, quantity: 1 },
+        { productId: first.id, quantity: 2 },
+      ],
+    }), { token, idempotencyKey: 'canonical-replay' }));
+
+    expect(initial.status).toBe(201);
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).data).toEqual((await initial.json()).data);
+    expect(await db.order.count()).toBe(1);
+  });
+
   it('returns in-progress when another transaction holds the same idempotency key', async () => {
     const { admin, token } = await adminToken();
     const product = await createTestProduct(db);
     const idempotencyKey = 'request-in-progress';
 
     await db.$transaction(async (tx) => {
+      const scope = `${admin.id}:CREATE_ORDER:${idempotencyKey}`;
+      const samePayload = JSON.stringify({ items: [{ productId: product.id, quantity: 1 }] });
+      const sameHash = createHash('sha256')
+        .update(JSON.stringify([{ productId: product.id, quantity: 1 }]))
+        .digest('hex');
       await tx.$executeRaw`
-        SELECT pg_advisory_xact_lock(
-          hashtextextended(${`${admin.id}:CREATE_ORDER:${idempotencyKey}`}, 0)
-        )
+        SELECT
+          pg_advisory_xact_lock(hashtextextended(${scope}, 0)),
+          pg_advisory_xact_lock(hashtextextended(${`${scope}:${sameHash}`}, 0))
       `;
 
-      const response = await createOrderRoute(createRequest(JSON.stringify({
-        items: [{ productId: product.id, quantity: 1 }],
+      const sameResponse = await createOrderRoute(createRequest(samePayload, { token, idempotencyKey }));
+      const differentPayload = await createOrderRoute(createRequest(JSON.stringify({
+        items: [{ productId: product.id, quantity: 2 }],
       }), { token, idempotencyKey }));
 
-      expect(response.status).toBe(409);
-      expect((await response.json()).error.code).toBe('IDEMPOTENCY_REQUEST_IN_PROGRESS');
+      expect(sameResponse.status).toBe(409);
+      expect((await sameResponse.json()).error.code).toBe('IDEMPOTENCY_REQUEST_IN_PROGRESS');
+      expect(differentPayload.status).toBe(409);
+      expect((await differentPayload.json()).error.code).toBe('IDEMPOTENCY_CONFLICT');
     });
+    expect(await db.order.count()).toBe(0);
+  });
+
+  it('creates exactly one order when two same-key requests overlap', async () => {
+    const { token } = await adminToken();
+    const product = await createTestProduct(db);
+    const payload = JSON.stringify({ items: [{ productId: product.id, quantity: 1 }] });
+
+    const [first, second] = await Promise.all([
+      createOrderRoute(createRequest(payload, { token, idempotencyKey: 'concurrent-same-key' })),
+      createOrderRoute(createRequest(payload, { token, idempotencyKey: 'concurrent-same-key' })),
+    ]);
+    const responses = [first, second];
+    const created = responses.find((response) => response.status === 201);
+    const duplicate = responses.find((response) => response.status !== 201);
+
+    expect(created).toBeDefined();
+    expect(duplicate).toBeDefined();
+    if (!created || !duplicate) {
+      throw new Error('Expected one created response and one duplicate response');
+    }
+    expect([200, 409]).toContain(duplicate.status);
+    if (duplicate.status === 409) {
+      expect((await duplicate.json()).error.code).toBe('IDEMPOTENCY_REQUEST_IN_PROGRESS');
+    }
+    expect(await db.order.count()).toBe(1);
+
+    const replay = await createOrderRoute(createRequest(payload, {
+      token,
+      idempotencyKey: 'concurrent-same-key',
+    }));
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).data).toEqual((await created.json()).data);
+  });
+
+  it('rejects a consolidated quantity above the PostgreSQL integer limit', async () => {
+    const { token } = await adminToken();
+    const product = await createTestProduct(db);
+
+    const response = await createOrderRoute(createRequest(JSON.stringify({
+      items: [
+        { productId: product.id, quantity: 2_147_483_647 },
+        { productId: product.id, quantity: 1 },
+      ],
+    }), { token, idempotencyKey: 'quantity-overflow' }));
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe('VALIDATION_ERROR');
     expect(await db.order.count()).toBe(0);
   });
 
