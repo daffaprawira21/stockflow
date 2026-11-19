@@ -42,11 +42,16 @@ function detailRoute(request: Request) {
 }
 
 describe('Order read APIs', () => {
-  it('makes the global order number sequence available for Ticket 2', async () => {
-    const [result] = await db.$queryRaw<{ value: string }[]>`
-      SELECT nextval('order_number_sequence')::text AS "value"
+  it('creates the global order number sequence with a starting value of one', async () => {
+    const [result] = await db.$queryRaw<{ startValue: string; value: string }[]>`
+      SELECT
+        seqstart::text AS "startValue",
+        nextval('order_number_sequence')::text AS "value"
+      FROM pg_sequence
+      WHERE seqrelid = 'order_number_sequence'::regclass
     `;
 
+    expect(result.startValue).toBe('1');
     expect(Number(result.value)).toBeGreaterThanOrEqual(1);
   });
 
@@ -79,6 +84,30 @@ describe('Order read APIs', () => {
       }],
       meta: { page: 1, limit: 1, totalItems: 2, totalPages: 2 },
     });
+  });
+
+  it('uses ID ascending as a stable tie-break for orders created at the same time', async () => {
+    const { admin, token } = await adminToken();
+    const product = await createTestProduct(db);
+    const first = await createTestOrder(db, admin.id, {
+      orderNumber: 'ORD-2026-000001',
+      items: [{ productId: product.id, quantity: 1, unitPrice: '100.00' }],
+    });
+    const second = await createTestOrder(db, admin.id, {
+      orderNumber: 'ORD-2026-000002',
+      items: [{ productId: product.id, quantity: 1, unitPrice: '100.00' }],
+    });
+    const createdAt = new Date('2026-01-01T00:00:00.000Z');
+    await db.order.update({ where: { id: first.id }, data: { createdAt } });
+    await db.order.update({ where: { id: second.id }, data: { createdAt } });
+
+    const response = await listOrdersRoute(listRequest('', token));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((order: { id: string }) => order.id)).toEqual(
+      [first.id, second.id].sort(),
+    );
   });
 
   it('filters orders by case-insensitive order number search and status', async () => {
@@ -119,10 +148,12 @@ describe('Order read APIs', () => {
       where: { id: pending.id },
       data: { createdAt: new Date('2026-01-01T08:00:00.000Z') },
     });
-    await db.orderStatusHistory.update({
-      where: { id: confirmed.id },
-      data: { createdAt: new Date('2026-01-01T09:00:00.000Z') },
+    const shipped = await db.orderStatusHistory.create({
+      data: { orderId: order.id, changedBy: admin.id, fromStatus: 'CONFIRMED', toStatus: 'SHIPPED' },
     });
+    const tiedCreatedAt = new Date('2026-01-01T10:00:00.000Z');
+    await db.orderStatusHistory.update({ where: { id: confirmed.id }, data: { createdAt: tiedCreatedAt } });
+    await db.orderStatusHistory.update({ where: { id: shipped.id }, data: { createdAt: tiedCreatedAt } });
     await db.product.update({ where: { id: product.id }, data: { price: '500.00' } });
 
     const response = await detailRoute(detailRequest(order.id, token));
@@ -134,7 +165,15 @@ describe('Order read APIs', () => {
     ]);
     expect(body.data.statusHistory).toEqual([
       { fromStatus: null, toStatus: 'PENDING', reason: null, createdAt: '2026-01-01T08:00:00.000Z' },
-      { fromStatus: 'PENDING', toStatus: 'CONFIRMED', reason: null, createdAt: '2026-01-01T09:00:00.000Z' },
+      ...[
+        { id: confirmed.id, fromStatus: 'PENDING', toStatus: 'CONFIRMED', reason: null },
+        { id: shipped.id, fromStatus: 'CONFIRMED', toStatus: 'SHIPPED', reason: null },
+      ].sort((left, right) => left.id.localeCompare(right.id)).map((history) => ({
+        fromStatus: history.fromStatus,
+        toStatus: history.toStatus,
+        reason: history.reason,
+        createdAt: '2026-01-01T10:00:00.000Z',
+      })),
     ]);
   });
 

@@ -1,12 +1,10 @@
-import { z } from 'zod';
 import { ApiError } from '@/lib/api/errors';
 import { requireAdmin } from '@/lib/api/guard';
 import { jsonFromError, jsonSuccess } from '@/lib/api/response';
 import { validationDetails } from '@/lib/api/validation';
 import prisma from '@/lib/db';
+import { orderIdSchema } from '@/modules/orders/schemas';
 import { getOrderById } from '@/modules/orders/service';
-
-const orderIdSchema = z.uuid();
 
 export async function GET(
   request: Request,

@@ -49,6 +49,17 @@ describe('listOrders', () => {
     expect(transaction).toHaveBeenCalledOnce();
   });
 
+  it('uses default newest-first ordering with ID tie-break', async () => {
+    await listOrders(prisma, orderListQuerySchema.parse({}));
+
+    expect(orderFindMany).toHaveBeenCalledWith({
+      where: {},
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: 0,
+      take: 10,
+    });
+  });
+
   it('serializes order money as fixed decimal strings', async () => {
     orderFindMany.mockResolvedValue([{
       id: 'order-1',
