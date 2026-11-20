@@ -4,7 +4,7 @@
 
 **Blocked by:** 03: Atomic order confirmation
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] Validate order ID, ADMIN authentication, allowed origin, and a trimmed non-empty cancellation reason.
 - [x] Cancel PENDING order without changing product stock or creating stock movements.

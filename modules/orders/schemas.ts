@@ -42,6 +42,4 @@ export const cancelOrderSchema = z.object({
   reason: z.string().trim().min(1),
 });
 
-export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;
-
 export const orderIdSchema = z.uuid();

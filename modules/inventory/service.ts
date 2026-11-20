@@ -7,6 +7,8 @@ import type { StockMovementType } from './types';
 
 type InventoryTransaction = Pick<Prisma.TransactionClient, 'stockMovement'>;
 
+const MAX_POSTGRES_INTEGER = 2_147_483_647;
+
 type OrderConfirmationTransaction = Pick<
   Prisma.TransactionClient,
   'product' | 'stockMovement' | '$queryRaw'
@@ -140,7 +142,7 @@ export async function adjustInventory(
 
     const delta = input.type === 'ADJUSTMENT_IN' ? input.quantity : -input.quantity;
     const quantityAfter = product.stock + delta;
-    if (quantityAfter < 0 || quantityAfter > 2_147_483_647) {
+    if (quantityAfter < 0 || quantityAfter > MAX_POSTGRES_INTEGER) {
       throw new ApiError('INVALID_ADJUSTMENT');
     }
 
@@ -226,18 +228,15 @@ export async function restoreStockForOrder(
   const byId = new Map(locked.map((product) => [product.id, product]));
 
   for (const item of items) {
-    if (!byId.has(item.productId)) {
-      throw new ApiError('RESOURCE_NOT_FOUND');
-    }
-  }
-
-  for (const item of items) {
     const product = byId.get(item.productId);
     if (!product) {
       throw new ApiError('RESOURCE_NOT_FOUND');
     }
 
     const quantityAfter = product.stock + item.quantity;
+    if (quantityAfter > MAX_POSTGRES_INTEGER) {
+      throw new ApiError('INVALID_ORDER_STATE', 'Stock restoration exceeds the allowed maximum');
+    }
     await tx.product.update({
       where: { id: product.id },
       data: { stock: quantityAfter },

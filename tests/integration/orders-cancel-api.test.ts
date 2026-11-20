@@ -188,6 +188,27 @@ describe('POST /api/orders/:id/cancel', () => {
     }
   });
 
+  it('rejects a restoration that would exceed the PostgreSQL integer limit', async () => {
+    const { admin, token } = await adminToken();
+    const product = await createTestProduct(db, { stock: 2_147_483_646 });
+    const order = await createTestOrder(db, admin.id, {
+      status: 'CONFIRMED',
+      items: [{ productId: product.id, quantity: 5, unitPrice: '10.00' }],
+    });
+
+    const response = await cancelRoute(cancelRequest(order.id, REASON, { token }), order.id);
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.code).toBe('INVALID_ORDER_STATE');
+    expect(await db.product.findUniqueOrThrow({ where: { id: product.id } })).toMatchObject({
+      stock: 2_147_483_646,
+    });
+    expect(await db.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({
+      status: 'CONFIRMED',
+    });
+    expect(await db.stockMovement.count()).toBe(0);
+  });
+
   it('restores stock only once when two cancellations race', async () => {
     const { admin, token } = await adminToken();
     const product = await createTestProduct(db, { stock: 4 });
