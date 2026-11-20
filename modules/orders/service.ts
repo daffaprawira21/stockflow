@@ -8,11 +8,13 @@ import {
   type CancelledOrder,
   type ConfirmedOrder,
   type CreatedOrder,
+  type ShippedOrder,
   serializeCancelledOrder,
   serializeConfirmedOrder,
   serializeCreatedOrder,
   serializeOrderDetail,
   serializeOrderListItem,
+  serializeShippedOrder,
 } from './serializer';
 import type { OrderStatus } from './schemas';
 
@@ -184,25 +186,56 @@ export async function createOrder(
   });
 }
 
+type OrderTransitionTransaction = Pick<
+  Prisma.TransactionClient,
+  'order' | 'orderItem' | 'orderStatusHistory' | '$queryRaw'
+>;
+
+async function lockOrderForTransition(
+  tx: OrderTransitionTransaction,
+  orderId: string,
+): Promise<OrderStatus> {
+  const [order] = await tx.$queryRaw<{ status: OrderStatus }[]>`
+    SELECT status
+    FROM orders
+    WHERE id = ${orderId}::uuid
+    FOR UPDATE
+  `;
+  if (!order) {
+    throw new ApiError('RESOURCE_NOT_FOUND');
+  }
+  return order.status;
+}
+
+async function recordOrderTransition(
+  tx: OrderTransitionTransaction,
+  transition: {
+    orderId: string;
+    performedBy: string;
+    fromStatus: OrderStatus;
+    toStatus: OrderStatus;
+    reason?: string;
+  },
+): Promise<void> {
+  await tx.orderStatusHistory.create({
+    data: {
+      orderId: transition.orderId,
+      changedBy: transition.performedBy,
+      fromStatus: transition.fromStatus,
+      toStatus: transition.toStatus,
+      reason: transition.reason,
+    },
+  });
+}
+
 export async function confirmOrder(
   prisma: OrderTransactionClient,
   performedBy: string,
   orderId: string,
 ): Promise<ConfirmedOrder> {
   return prisma.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{
-      id: string;
-      status: OrderStatus;
-    }[]>`
-      SELECT id, status
-      FROM orders
-      WHERE id = ${orderId}::uuid
-      FOR UPDATE
-    `;
-    if (!order) {
-      throw new ApiError('RESOURCE_NOT_FOUND');
-    }
-    if (order.status !== 'PENDING') {
+    const status = await lockOrderForTransition(tx, orderId);
+    if (status !== 'PENDING') {
       throw new ApiError('ORDER_CONFLICT');
     }
 
@@ -221,22 +254,20 @@ export async function confirmOrder(
     const updated = await tx.order.update({
       where: { id: orderId },
       data: { status: 'CONFIRMED', confirmedAt },
-      select: { id: true, status: true, confirmedAt: true },
+      select: { status: true, confirmedAt: true },
     });
     if (!updated.confirmedAt) {
       throw new Error('Confirmed order is missing its confirmation timestamp');
     }
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId,
-        changedBy: performedBy,
-        fromStatus: 'PENDING',
-        toStatus: 'CONFIRMED',
-      },
+    await recordOrderTransition(tx, {
+      orderId,
+      performedBy,
+      fromStatus: status,
+      toStatus: 'CONFIRMED',
     });
 
     return serializeConfirmedOrder({
-      id: updated.id,
+      id: orderId,
       status: updated.status as OrderStatus,
       confirmedAt: updated.confirmedAt,
     });
@@ -250,23 +281,12 @@ export async function cancelOrder(
   reason: string,
 ): Promise<CancelledOrder> {
   return prisma.$transaction(async (tx) => {
-    const [order] = await tx.$queryRaw<{
-      id: string;
-      status: OrderStatus;
-    }[]>`
-      SELECT id, status
-      FROM orders
-      WHERE id = ${orderId}::uuid
-      FOR UPDATE
-    `;
-    if (!order) {
-      throw new ApiError('RESOURCE_NOT_FOUND');
-    }
-    if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+    const status = await lockOrderForTransition(tx, orderId);
+    if (status !== 'PENDING' && status !== 'CONFIRMED') {
       throw new ApiError('ORDER_CONFLICT');
     }
 
-    if (order.status === 'CONFIRMED') {
+    if (status === 'CONFIRMED') {
       const items = await tx.orderItem.findMany({
         where: { orderId },
         select: { productId: true, quantity: true },
@@ -281,25 +301,58 @@ export async function cancelOrder(
     const updated = await tx.order.update({
       where: { id: orderId },
       data: { status: 'CANCELLED', cancelledAt },
-      select: { id: true, status: true, cancelledAt: true },
+      select: { status: true, cancelledAt: true },
     });
     if (!updated.cancelledAt) {
       throw new Error('Cancelled order is missing its cancellation timestamp');
     }
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId,
-        changedBy: performedBy,
-        fromStatus: order.status,
-        toStatus: 'CANCELLED',
-        reason,
-      },
+    await recordOrderTransition(tx, {
+      orderId,
+      performedBy,
+      fromStatus: status,
+      toStatus: 'CANCELLED',
+      reason,
     });
 
     return serializeCancelledOrder({
-      id: updated.id,
+      id: orderId,
       status: updated.status as OrderStatus,
       cancelledAt: updated.cancelledAt,
+    });
+  });
+}
+
+export async function shipOrder(
+  prisma: OrderTransactionClient,
+  performedBy: string,
+  orderId: string,
+): Promise<ShippedOrder> {
+  return prisma.$transaction(async (tx) => {
+    const status = await lockOrderForTransition(tx, orderId);
+    if (status !== 'CONFIRMED') {
+      throw new ApiError('ORDER_CONFLICT');
+    }
+
+    const shippedAt = new Date();
+    const updated = await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'SHIPPED', shippedAt },
+      select: { status: true, shippedAt: true },
+    });
+    if (!updated.shippedAt) {
+      throw new Error('Shipped order is missing its shipment timestamp');
+    }
+    await recordOrderTransition(tx, {
+      orderId,
+      performedBy,
+      fromStatus: status,
+      toStatus: 'SHIPPED',
+    });
+
+    return serializeShippedOrder({
+      id: orderId,
+      status: updated.status as OrderStatus,
+      shippedAt: updated.shippedAt,
     });
   });
 }
