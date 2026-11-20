@@ -6,10 +6,32 @@ import { serializeInventoryItem, serializeStockAdjustment, serializeStockMovemen
 
 type InventoryTransaction = Pick<Prisma.TransactionClient, 'stockMovement'>;
 
+type OrderConfirmationTransaction = Pick<
+  Prisma.TransactionClient,
+  'product' | 'stockMovement' | '$queryRaw'
+>;
+
 type InitialStockMovement = {
   productId: string;
   performedBy: string;
   quantity: number;
+};
+
+type OrderStockItem = {
+  productId: string;
+  quantity: number;
+};
+
+type OrderStockDeduction = {
+  orderId: string;
+  performedBy: string;
+  items: OrderStockItem[];
+};
+
+type LockedProductStock = {
+  id: string;
+  stock: number;
+  isActive: boolean;
 };
 
 type InventoryListClient = Pick<PrismaClient, 'product' | '$transaction'>;
@@ -164,4 +186,60 @@ export async function recordInitialStock(
       quantityAfter: movement.quantity,
     },
   });
+}
+
+export async function lockProductStocks(
+  tx: OrderConfirmationTransaction,
+  productIds: string[],
+): Promise<LockedProductStock[]> {
+  const orderedIds = [...new Set(productIds)].sort();
+
+  return tx.$queryRaw<LockedProductStock[]>`
+    SELECT id, stock, is_active AS "isActive"
+    FROM products
+    WHERE id = ANY(${orderedIds}::uuid[])
+    ORDER BY id
+    FOR UPDATE
+  `;
+}
+
+export async function deductStockForOrder(
+  tx: OrderConfirmationTransaction,
+  deduction: OrderStockDeduction,
+): Promise<void> {
+  const locked = await lockProductStocks(
+    tx,
+    deduction.items.map((item) => item.productId),
+  );
+  const byId = new Map(locked.map((product) => [product.id, product]));
+
+  for (const item of deduction.items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+    if (!product.isActive) {
+      throw new ApiError('PRODUCT_INACTIVE');
+    }
+    if (product.stock < item.quantity) {
+      throw new ApiError('INSUFFICIENT_STOCK');
+    }
+
+    const quantityAfter = product.stock - item.quantity;
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stock: quantityAfter },
+    });
+    await tx.stockMovement.create({
+      data: {
+        productId: product.id,
+        performedBy: deduction.performedBy,
+        orderId: deduction.orderId,
+        movementType: 'ORDER_CONFIRMED',
+        quantityDelta: -item.quantity,
+        quantityBefore: product.stock,
+        quantityAfter,
+      },
+    });
+  }
 }

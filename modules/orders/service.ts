@@ -2,9 +2,12 @@ import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
+import { deductStockForOrder } from '../inventory/service';
 import type { CreateOrderInput, OrderListQuery } from './schemas';
 import {
+  type ConfirmedOrder,
   type CreatedOrder,
+  serializeConfirmedOrder,
   serializeCreatedOrder,
   serializeOrderDetail,
   serializeOrderListItem,
@@ -12,6 +15,7 @@ import {
 
 type OrderReadClient = Pick<PrismaClient, 'order' | '$transaction'>;
 type OrderCreateClient = Pick<PrismaClient, '$transaction'>;
+type OrderConfirmationClient = Pick<PrismaClient, '$transaction'>;
 
 export type CreateOrderResult = {
   order: CreatedOrder;
@@ -174,6 +178,55 @@ export async function createOrder(
     });
 
     return { order: serialized, replayed: false };
+  });
+}
+
+export async function confirmOrder(
+  prisma: OrderConfirmationClient,
+  performedBy: string,
+  orderId: string,
+): Promise<ConfirmedOrder> {
+  return prisma.$transaction(async (tx) => {
+    const [order] = await tx.$queryRaw<{
+      id: string;
+      status: string;
+    }[]>`
+      SELECT id, status
+      FROM orders
+      WHERE id = ${orderId}::uuid
+      FOR UPDATE
+    `;
+    if (!order) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+    if (order.status !== 'PENDING') {
+      throw new ApiError('ORDER_CONFLICT');
+    }
+
+    const items = await tx.orderItem.findMany({
+      where: { orderId },
+      select: { productId: true, quantity: true },
+      orderBy: { productId: 'asc' },
+    });
+
+    await deductStockForOrder(tx, { orderId, performedBy, items });
+
+    const confirmedAt = new Date();
+    const updated = await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'CONFIRMED', confirmedAt },
+      select: { id: true, status: true, confirmedAt: true },
+    });
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        changedBy: performedBy,
+        fromStatus: 'PENDING',
+        toStatus: 'CONFIRMED',
+      },
+    });
+
+    return serializeConfirmedOrder(updated);
   });
 }
 

@@ -55,6 +55,24 @@ export function serializeCreatedOrder(order: CreatedOrderRecord): CreatedOrder {
   };
 }
 
+export type ConfirmedOrder = {
+  orderId: string;
+  status: string;
+  confirmedAt: string;
+};
+
+export function serializeConfirmedOrder(order: {
+  id: string;
+  status: string;
+  confirmedAt: Date | null;
+}): ConfirmedOrder {
+  return {
+    orderId: order.id,
+    status: order.status,
+    confirmedAt: (order.confirmedAt ?? new Date()).toISOString(),
+  };
+}
+
 export function serializeOrderDetail(order: OrderDetailRecord) {
   return {
     id: order.id,

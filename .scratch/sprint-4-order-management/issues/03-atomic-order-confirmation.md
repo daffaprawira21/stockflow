@@ -4,11 +4,11 @@
 
 **Blocked by:** 02: Idempotent order creation
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] Validate order ID and require ADMIN authentication plus allowed origin.
-- [ ] Reject missing order, non-PENDING order, inactive product, and insufficient stock using contract errors.
-- [ ] Lock all affected product rows in a deterministic order before validation and mutation.
-- [ ] In one transaction, deduct each product stock, write `ORDER_CONFIRMED` movements, update order status/`confirmedAt`, and write `PENDING → CONFIRMED` history.
-- [ ] Ensure failure rolls back stock, movements, status, timestamp, and history together.
-- [ ] Test happy path, each rejection path, rollback, actor audit fields, and concurrent confirmations without negative or oversold inventory.
+- [x] Validate order ID and require ADMIN authentication plus allowed origin.
+- [x] Reject missing order, non-PENDING order, inactive product, and insufficient stock using contract errors.
+- [x] Lock all affected product rows in a deterministic order before validation and mutation.
+- [x] In one transaction, deduct each product stock, write `ORDER_CONFIRMED` movements, update order status/`confirmedAt`, and write `PENDING → CONFIRMED` history.
+- [x] Ensure failure rolls back stock, movements, status, timestamp, and history together.
+- [x] Test happy path, each rejection path, rollback, actor audit fields, and concurrent confirmations without negative or oversold inventory.
