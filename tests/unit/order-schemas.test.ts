@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createOrderSchema, orderListQuerySchema, orderIdSchema } from '../../modules/orders/schemas';
+import {
+  cancelOrderSchema,
+  createOrderSchema,
+  orderListQuerySchema,
+  orderIdSchema,
+} from '../../modules/orders/schemas';
 
 describe('order query schemas', () => {
   it('uses newest-first pagination defaults', () => {
@@ -55,5 +60,20 @@ describe('order query schemas', () => {
     { items: [{ productId: '00000000-0000-4000-8000-000000000001', quantity: 1.5 }] },
   ])('rejects invalid create-order payload %#', (payload) => {
     expect(createOrderSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('trims a non-empty cancellation reason', () => {
+    expect(cancelOrderSchema.parse({ reason: '  Customer asked  ' })).toEqual({
+      reason: 'Customer asked',
+    });
+  });
+
+  it.each([
+    {},
+    { reason: '' },
+    { reason: '   ' },
+    { reason: 42 },
+  ])('rejects cancellation without a usable reason %#', (payload) => {
+    expect(cancelOrderSchema.safeParse(payload).success).toBe(false);
   });
 });
