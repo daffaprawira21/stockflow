@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { cancelOrder } from '../../modules/orders/service';
+import { cancelOrder, confirmOrder, shipOrder } from '../../modules/orders/service';
 import {
   serializeCancelledOrder,
   serializeConfirmedOrder,
@@ -58,6 +58,37 @@ describe('order transition guards', () => {
     await expect(cancelOrder(prisma, 'admin-1', 'order-1', 'reason')).rejects.toMatchObject({
       code: 'RESOURCE_NOT_FOUND',
     });
+  });
+
+  it('rejects confirming a non-PENDING order', async () => {
+    queryRaw.mockResolvedValue([{ status: 'CONFIRMED' }]);
+
+    await expect(confirmOrder(prisma, 'admin-1', 'order-1')).rejects.toMatchObject({
+      code: 'ORDER_CONFLICT',
+    });
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(historyCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects confirming a pending order without items', async () => {
+    queryRaw.mockResolvedValue([{ status: 'PENDING' }]);
+    orderItemFindMany.mockResolvedValue([]);
+
+    await expect(confirmOrder(prisma, 'admin-1', 'order-1')).rejects.toMatchObject({
+      code: 'ORDER_CONFLICT',
+    });
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(historyCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects shipping from any status except CONFIRMED', async () => {
+    queryRaw.mockResolvedValue([{ status: 'PENDING' }]);
+
+    await expect(shipOrder(prisma, 'admin-1', 'order-1')).rejects.toMatchObject({
+      code: 'ORDER_CONFLICT',
+    });
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(historyCreate).not.toHaveBeenCalled();
   });
 });
 

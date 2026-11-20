@@ -4,7 +4,7 @@
 
 **Blocked by:** 03: Atomic order confirmation
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] Validate order ID, ADMIN authentication, and allowed origin.
 - [x] Allow only CONFIRMED → SHIPPED; reject missing orders and all other source states with documented errors.
