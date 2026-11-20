@@ -12,10 +12,11 @@ import {
   serializeOrderDetail,
   serializeOrderListItem,
 } from './serializer';
+import type { OrderStatus } from './schemas';
 
 type OrderReadClient = Pick<PrismaClient, 'order' | '$transaction'>;
 type OrderCreateClient = Pick<PrismaClient, '$transaction'>;
-type OrderConfirmationClient = Pick<PrismaClient, '$transaction'>;
+type OrderTransactionClient = Pick<PrismaClient, '$transaction'>;
 
 export type CreateOrderResult = {
   order: CreatedOrder;
@@ -182,14 +183,14 @@ export async function createOrder(
 }
 
 export async function confirmOrder(
-  prisma: OrderConfirmationClient,
+  prisma: OrderTransactionClient,
   performedBy: string,
   orderId: string,
 ): Promise<ConfirmedOrder> {
   return prisma.$transaction(async (tx) => {
     const [order] = await tx.$queryRaw<{
       id: string;
-      status: string;
+      status: OrderStatus;
     }[]>`
       SELECT id, status
       FROM orders
@@ -208,6 +209,9 @@ export async function confirmOrder(
       select: { productId: true, quantity: true },
       orderBy: { productId: 'asc' },
     });
+    if (items.length === 0) {
+      throw new ApiError('ORDER_CONFLICT');
+    }
 
     await deductStockForOrder(tx, { orderId, performedBy, items });
 
@@ -217,6 +221,9 @@ export async function confirmOrder(
       data: { status: 'CONFIRMED', confirmedAt },
       select: { id: true, status: true, confirmedAt: true },
     });
+    if (!updated.confirmedAt) {
+      throw new Error('Confirmed order is missing its confirmation timestamp');
+    }
     await tx.orderStatusHistory.create({
       data: {
         orderId,
@@ -226,7 +233,11 @@ export async function confirmOrder(
       },
     });
 
-    return serializeConfirmedOrder(updated);
+    return serializeConfirmedOrder({
+      id: updated.id,
+      status: updated.status as OrderStatus,
+      confirmedAt: updated.confirmedAt,
+    });
   });
 }
 

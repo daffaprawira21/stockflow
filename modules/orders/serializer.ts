@@ -1,5 +1,6 @@
 import type { Prisma } from '../../lib/generated/prisma/client';
 import { toMoneyString } from '../../lib/money';
+import type { OrderStatus } from './schemas';
 
 export type OrderListRecord = Pick<
   Prisma.OrderModel,
@@ -57,19 +58,19 @@ export function serializeCreatedOrder(order: CreatedOrderRecord): CreatedOrder {
 
 export type ConfirmedOrder = {
   orderId: string;
-  status: string;
+  status: OrderStatus;
   confirmedAt: string;
 };
 
 export function serializeConfirmedOrder(order: {
   id: string;
-  status: string;
-  confirmedAt: Date | null;
+  status: OrderStatus;
+  confirmedAt: Date;
 }): ConfirmedOrder {
   return {
     orderId: order.id,
     status: order.status,
-    confirmedAt: (order.confirmedAt ?? new Date()).toISOString(),
+    confirmedAt: order.confirmedAt.toISOString(),
   };
 }
 

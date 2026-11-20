@@ -4,7 +4,7 @@
 
 **Blocked by:** 02: Idempotent order creation
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] Validate order ID and require ADMIN authentication plus allowed origin.
 - [x] Reject missing order, non-PENDING order, inactive product, and insufficient stock using contract errors.

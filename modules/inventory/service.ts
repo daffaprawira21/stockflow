@@ -3,6 +3,7 @@ import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
 import type { AdjustInventoryInput, InventoryListQuery, StockMovementQuery } from './schemas';
 import { serializeInventoryItem, serializeStockAdjustment, serializeStockMovement } from './serializer';
+import type { StockMovementType } from './types';
 
 type InventoryTransaction = Pick<Prisma.TransactionClient, 'stockMovement'>;
 
@@ -188,7 +189,7 @@ export async function recordInitialStock(
   });
 }
 
-export async function lockProductStocks(
+async function lockProductStocks(
   tx: OrderConfirmationTransaction,
   productIds: string[],
 ): Promise<LockedProductStock[]> {
@@ -203,17 +204,28 @@ export async function lockProductStocks(
   `;
 }
 
+function consolidateOrderStockItems(items: OrderStockItem[]): OrderStockItem[] {
+  const quantities = new Map<string, number>();
+  for (const item of items) {
+    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  }
+  return [...quantities.entries()]
+    .map(([productId, quantity]) => ({ productId, quantity }))
+    .sort((left, right) => left.productId.localeCompare(right.productId));
+}
+
 export async function deductStockForOrder(
   tx: OrderConfirmationTransaction,
   deduction: OrderStockDeduction,
 ): Promise<void> {
+  const items = consolidateOrderStockItems(deduction.items);
   const locked = await lockProductStocks(
     tx,
-    deduction.items.map((item) => item.productId),
+    items.map((item) => item.productId),
   );
   const byId = new Map(locked.map((product) => [product.id, product]));
 
-  for (const item of deduction.items) {
+  for (const item of items) {
     const product = byId.get(item.productId);
     if (!product) {
       throw new ApiError('RESOURCE_NOT_FOUND');
@@ -222,7 +234,18 @@ export async function deductStockForOrder(
       throw new ApiError('PRODUCT_INACTIVE');
     }
     if (product.stock < item.quantity) {
-      throw new ApiError('INSUFFICIENT_STOCK');
+      throw new ApiError('INSUFFICIENT_STOCK', undefined, [{
+        productId: product.id,
+        requestedQuantity: item.quantity,
+        availableQuantity: product.stock,
+      }]);
+    }
+  }
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
     }
 
     const quantityAfter = product.stock - item.quantity;
@@ -235,7 +258,7 @@ export async function deductStockForOrder(
         productId: product.id,
         performedBy: deduction.performedBy,
         orderId: deduction.orderId,
-        movementType: 'ORDER_CONFIRMED',
+        movementType: 'ORDER_CONFIRMED' satisfies StockMovementType,
         quantityDelta: -item.quantity,
         quantityBefore: product.stock,
         quantityAfter,

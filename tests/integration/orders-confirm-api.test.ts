@@ -4,6 +4,7 @@ import prisma from '../../lib/db';
 import { createSession } from '../../modules/auth/session';
 import { createTestPrismaClient, truncateAll } from '../helpers/db';
 import { createTestAdmin, createTestOrder, createTestProduct } from '../helpers/factories';
+import { adjustInventory } from '../../modules/inventory/service';
 
 const db = createTestPrismaClient();
 const ORIGIN = 'http://localhost:3000';
@@ -110,7 +111,13 @@ describe('POST /api/orders/:id/confirm', () => {
     expect(inactiveResponse.status).toBe(422);
     expect((await inactiveResponse.json()).error.code).toBe('PRODUCT_INACTIVE');
     expect(insufficient.status).toBe(422);
-    expect((await insufficient.json()).error.code).toBe('INSUFFICIENT_STOCK');
+    const insufficientBody = await insufficient.json();
+    expect(insufficientBody.error.code).toBe('INSUFFICIENT_STOCK');
+    expect(insufficientBody.error.details).toEqual([{
+      productId: product.id,
+      requestedQuantity: 99,
+      availableQuantity: 5,
+    }]);
 
     expect(await db.stockMovement.count()).toBe(0);
     expect(await db.orderStatusHistory.count()).toBe(0);
@@ -185,6 +192,40 @@ describe('POST /api/orders/:id/confirm', () => {
     expect(stock).toBe(3);
     expect(stock).toBeGreaterThanOrEqual(0);
     expect(await db.stockMovement.count()).toBe(1);
+  });
+
+  it('prevents oversell when an adjustment competes with a confirmation', async () => {
+    const { admin, token } = await adminToken();
+    const product = await createTestProduct(db, { stock: 10 });
+    const order = await createTestOrder(db, admin.id, {
+      items: [{ productId: product.id, quantity: 8, unitPrice: '10.00' }],
+    });
+
+    const [confirmed, adjusted] = await Promise.allSettled([
+      confirmRoute(confirmRequest(order.id, { token }), order.id),
+      adjustInventory(db, admin.id, {
+        productId: product.id,
+        type: 'ADJUSTMENT_OUT',
+        quantity: 5,
+        reason: 'Concurrent adjustment',
+      }),
+    ]);
+
+    const confirmSucceeded = confirmed.status === 'fulfilled' && confirmed.value.status === 200;
+    const adjustSucceeded = adjusted.status === 'fulfilled';
+
+    expect(confirmSucceeded).not.toBe(adjustSucceeded);
+
+    const savedProduct = await db.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(savedProduct.stock).toBe(confirmSucceeded ? 2 : 5);
+    expect(savedProduct.stock).toBeGreaterThanOrEqual(0);
+
+    const movements = await db.stockMovement.findMany({ where: { productId: product.id } });
+    expect(movements).toHaveLength(1);
+    expect(movements[0].quantityAfter).toBeGreaterThanOrEqual(0);
+    expect(movements[0].quantityAfter).toBe(
+      movements[0].quantityBefore + movements[0].quantityDelta,
+    );
   });
 
   it('requires an ADMIN session, allowed origin, and a valid order ID', async () => {

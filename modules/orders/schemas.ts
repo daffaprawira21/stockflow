@@ -14,6 +14,8 @@ const positiveIntegerQuery = (fallback: string, maximum?: number) =>
 
 export const orderStatuses = ['PENDING', 'CONFIRMED', 'SHIPPED', 'CANCELLED'] as const;
 
+export type OrderStatus = (typeof orderStatuses)[number];
+
 export const orderListQuerySchema = z
   .object({
     page: positiveIntegerQuery('1'),
