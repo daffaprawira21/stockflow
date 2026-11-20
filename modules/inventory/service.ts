@@ -3,13 +3,38 @@ import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
 import type { AdjustInventoryInput, InventoryListQuery, StockMovementQuery } from './schemas';
 import { serializeInventoryItem, serializeStockAdjustment, serializeStockMovement } from './serializer';
+import type { StockMovementType } from './types';
 
 type InventoryTransaction = Pick<Prisma.TransactionClient, 'stockMovement'>;
+
+const MAX_POSTGRES_INTEGER = 2_147_483_647;
+
+type OrderConfirmationTransaction = Pick<
+  Prisma.TransactionClient,
+  'product' | 'stockMovement' | '$queryRaw'
+>;
 
 type InitialStockMovement = {
   productId: string;
   performedBy: string;
   quantity: number;
+};
+
+type OrderStockItem = {
+  productId: string;
+  quantity: number;
+};
+
+type OrderStockDeduction = {
+  orderId: string;
+  performedBy: string;
+  items: OrderStockItem[];
+};
+
+type LockedProductStock = {
+  id: string;
+  stock: number;
+  isActive: boolean;
 };
 
 type InventoryListClient = Pick<PrismaClient, 'product' | '$transaction'>;
@@ -117,7 +142,7 @@ export async function adjustInventory(
 
     const delta = input.type === 'ADJUSTMENT_IN' ? input.quantity : -input.quantity;
     const quantityAfter = product.stock + delta;
-    if (quantityAfter < 0 || quantityAfter > 2_147_483_647) {
+    if (quantityAfter < 0 || quantityAfter > MAX_POSTGRES_INTEGER) {
       throw new ApiError('INVALID_ADJUSTMENT');
     }
 
@@ -164,4 +189,121 @@ export async function recordInitialStock(
       quantityAfter: movement.quantity,
     },
   });
+}
+
+async function lockProductStocks(
+  tx: OrderConfirmationTransaction,
+  productIds: string[],
+): Promise<LockedProductStock[]> {
+  const orderedIds = [...new Set(productIds)].sort();
+
+  return tx.$queryRaw<LockedProductStock[]>`
+    SELECT id, stock, is_active AS "isActive"
+    FROM products
+    WHERE id = ANY(${orderedIds}::uuid[])
+    ORDER BY id
+    FOR UPDATE
+  `;
+}
+
+function consolidateOrderStockItems(items: OrderStockItem[]): OrderStockItem[] {
+  const quantities = new Map<string, number>();
+  for (const item of items) {
+    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  }
+  return [...quantities.entries()]
+    .map(([productId, quantity]) => ({ productId, quantity }))
+    .sort((left, right) => left.productId.localeCompare(right.productId));
+}
+
+export async function restoreStockForOrder(
+  tx: OrderConfirmationTransaction,
+  restoration: OrderStockDeduction,
+): Promise<void> {
+  const items = consolidateOrderStockItems(restoration.items);
+  const locked = await lockProductStocks(
+    tx,
+    items.map((item) => item.productId),
+  );
+  const byId = new Map(locked.map((product) => [product.id, product]));
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+
+    const quantityAfter = product.stock + item.quantity;
+    if (quantityAfter > MAX_POSTGRES_INTEGER) {
+      throw new ApiError('INVALID_ORDER_STATE', 'Stock restoration exceeds the allowed maximum');
+    }
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stock: quantityAfter },
+    });
+    await tx.stockMovement.create({
+      data: {
+        productId: product.id,
+        performedBy: restoration.performedBy,
+        orderId: restoration.orderId,
+        movementType: 'ORDER_CANCELLED' satisfies StockMovementType,
+        quantityDelta: item.quantity,
+        quantityBefore: product.stock,
+        quantityAfter,
+      },
+    });
+  }
+}
+
+export async function deductStockForOrder(
+  tx: OrderConfirmationTransaction,
+  deduction: OrderStockDeduction,
+): Promise<void> {
+  const items = consolidateOrderStockItems(deduction.items);
+  const locked = await lockProductStocks(
+    tx,
+    items.map((item) => item.productId),
+  );
+  const byId = new Map(locked.map((product) => [product.id, product]));
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+    if (!product.isActive) {
+      throw new ApiError('PRODUCT_INACTIVE');
+    }
+    if (product.stock < item.quantity) {
+      throw new ApiError('INSUFFICIENT_STOCK', undefined, [{
+        productId: product.id,
+        requestedQuantity: item.quantity,
+        availableQuantity: product.stock,
+      }]);
+    }
+  }
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+
+    const quantityAfter = product.stock - item.quantity;
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stock: quantityAfter },
+    });
+    await tx.stockMovement.create({
+      data: {
+        productId: product.id,
+        performedBy: deduction.performedBy,
+        orderId: deduction.orderId,
+        movementType: 'ORDER_CONFIRMED' satisfies StockMovementType,
+        quantityDelta: -item.quantity,
+        quantityBefore: product.stock,
+        quantityAfter,
+      },
+    });
+  }
 }

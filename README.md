@@ -6,9 +6,9 @@ StockFlow is a full-stack inventory and order management system designed to help
 
 This project is being developed as a software engineering learning project and developer portfolio, with an emphasis on requirements engineering, system design, database integrity, testing, and deployment.
 
-> **Project status: Sprint 3 complete**
+> **Project status: Sprint 4 complete**
 >
-> The database foundation, administrator authentication, product management REST API, and inventory REST API are implemented. Product and inventory management are available through the REST API only; their user interface is planned for Sprint 5. Order management and dashboard features are not implemented yet.
+> The database foundation, administrator authentication, product management REST API, inventory REST API, and order lifecycle API are implemented. Product, inventory, and order management are currently API-only; their user interfaces and dashboard are planned for Sprint 5.
 
 ## Getting Started
 
@@ -281,7 +281,7 @@ This is the target structure and will be established incrementally during implem
 | Sprint 1 | Database Foundation and Authentication | Completed   |
 | Sprint 2 | Product Management REST API             | Completed   |
 | Sprint 3 | Inventory Management                   | Completed   |
-| Sprint 4 | Order Management                       | Planned     |
+| Sprint 4 | Order Management                       | Completed   |
 | Sprint 5 | Frontend and Dashboard                 | Planned     |
 | Sprint 6 | Testing and Deployment                 | Planned     |
 
