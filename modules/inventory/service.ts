@@ -214,6 +214,48 @@ function consolidateOrderStockItems(items: OrderStockItem[]): OrderStockItem[] {
     .sort((left, right) => left.productId.localeCompare(right.productId));
 }
 
+export async function restoreStockForOrder(
+  tx: OrderConfirmationTransaction,
+  restoration: OrderStockDeduction,
+): Promise<void> {
+  const items = consolidateOrderStockItems(restoration.items);
+  const locked = await lockProductStocks(
+    tx,
+    items.map((item) => item.productId),
+  );
+  const byId = new Map(locked.map((product) => [product.id, product]));
+
+  for (const item of items) {
+    if (!byId.has(item.productId)) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+  }
+
+  for (const item of items) {
+    const product = byId.get(item.productId);
+    if (!product) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+
+    const quantityAfter = product.stock + item.quantity;
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stock: quantityAfter },
+    });
+    await tx.stockMovement.create({
+      data: {
+        productId: product.id,
+        performedBy: restoration.performedBy,
+        orderId: restoration.orderId,
+        movementType: 'ORDER_CANCELLED' satisfies StockMovementType,
+        quantityDelta: item.quantity,
+        quantityBefore: product.stock,
+        quantityAfter,
+      },
+    });
+  }
+}
+
 export async function deductStockForOrder(
   tx: OrderConfirmationTransaction,
   deduction: OrderStockDeduction,

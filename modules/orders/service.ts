@@ -2,11 +2,13 @@ import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
-import { deductStockForOrder } from '../inventory/service';
+import { deductStockForOrder, restoreStockForOrder } from '../inventory/service';
 import type { CreateOrderInput, OrderListQuery } from './schemas';
 import {
+  type CancelledOrder,
   type ConfirmedOrder,
   type CreatedOrder,
+  serializeCancelledOrder,
   serializeConfirmedOrder,
   serializeCreatedOrder,
   serializeOrderDetail,
@@ -237,6 +239,67 @@ export async function confirmOrder(
       id: updated.id,
       status: updated.status as OrderStatus,
       confirmedAt: updated.confirmedAt,
+    });
+  });
+}
+
+export async function cancelOrder(
+  prisma: OrderTransactionClient,
+  performedBy: string,
+  orderId: string,
+  reason: string,
+): Promise<CancelledOrder> {
+  return prisma.$transaction(async (tx) => {
+    const [order] = await tx.$queryRaw<{
+      id: string;
+      status: OrderStatus;
+    }[]>`
+      SELECT id, status
+      FROM orders
+      WHERE id = ${orderId}::uuid
+      FOR UPDATE
+    `;
+    if (!order) {
+      throw new ApiError('RESOURCE_NOT_FOUND');
+    }
+    if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+      throw new ApiError('ORDER_CONFLICT');
+    }
+
+    if (order.status === 'CONFIRMED') {
+      const items = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { productId: true, quantity: true },
+      });
+      if (items.length === 0) {
+        throw new ApiError('ORDER_CONFLICT');
+      }
+      await restoreStockForOrder(tx, { orderId, performedBy, items });
+    }
+
+    const cancelledAt = new Date();
+    const updated = await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED', cancelledAt },
+      select: { id: true, status: true, cancelledAt: true },
+    });
+    if (!updated.cancelledAt) {
+      throw new Error('Cancelled order is missing its cancellation timestamp');
+    }
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        changedBy: performedBy,
+        fromStatus: order.status,
+        toStatus: 'CANCELLED',
+        reason,
+      },
+    });
+
+    return serializeCancelledOrder({
+      id: updated.id,
+      status: updated.status as OrderStatus,
+      cancelledAt: updated.cancelledAt,
     });
   });
 }

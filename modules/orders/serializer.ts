@@ -74,6 +74,24 @@ export function serializeConfirmedOrder(order: {
   };
 }
 
+export type CancelledOrder = {
+  orderId: string;
+  status: OrderStatus;
+  cancelledAt: string;
+};
+
+export function serializeCancelledOrder(order: {
+  id: string;
+  status: OrderStatus;
+  cancelledAt: Date;
+}): CancelledOrder {
+  return {
+    orderId: order.id,
+    status: order.status,
+    cancelledAt: order.cancelledAt.toISOString(),
+  };
+}
+
 export function serializeOrderDetail(order: OrderDetailRecord) {
   return {
     id: order.id,
