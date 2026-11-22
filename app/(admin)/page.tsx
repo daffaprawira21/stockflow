@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 type SummaryField = {
   key:
@@ -57,9 +58,9 @@ export default async function DashboardPage() {
           <span className="value">{body.data[field.key]}</span>
         </div>
       ))}
-      <a href="/products" className="btn btn-primary">
+      <Link href="/products" className="btn btn-primary">
         Manage products
-      </a>
+      </Link>
     </div>
   );
 }
