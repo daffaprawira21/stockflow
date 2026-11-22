@@ -1,33 +1,57 @@
-'use client';
-
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import type { Route } from 'next';
 
-export type NavItem = {
+export type NavLink = {
   href: string;
   label: string;
   matches: (pathname: string) => boolean;
 };
 
-export function NavLinks({ items }: { items: NavItem[] }) {
-  const pathname = usePathname();
+const NAV_ITEMS: NavLink[] = [
+  { href: '/', label: 'Dashboard', matches: (p) => p === '/' },
+  {
+    href: '/products',
+    label: 'Products',
+    matches: (p) => p.startsWith('/products'),
+  },
+  {
+    href: '/inventory',
+    label: 'Inventory',
+    matches: (p) => p.startsWith('/inventory'),
+  },
+  {
+    href: '/orders',
+    label: 'Orders',
+    matches: (p) => p.startsWith('/orders'),
+  },
+];
 
+function SingleNavLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link href={href as never} className={active ? 'active' : ''}>
+      {label}
+    </Link>
+  );
+}
+
+export function NavLinks({ pathname }: { pathname: string }) {
   return (
     <nav>
-      {items.map((item) => {
-        const active = item.matches(pathname);
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href as Route}
-            className={active ? 'active' : ''}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
+      {NAV_ITEMS.map((item) => (
+        <SingleNavLink
+          key={item.href}
+          href={item.href}
+          label={item.label}
+          active={item.matches(pathname)}
+        />
+      ))}
     </nav>
   );
 }

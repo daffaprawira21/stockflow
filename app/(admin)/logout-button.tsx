@@ -10,9 +10,15 @@ export function LogoutButton() {
   async function handleLogout() {
     setPending(true);
 
-    await fetch('/api/auth/logout', { method: 'POST' });
-
-    router.replace('/login');
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      // Always redirect to /login on sign-out, even if the API call fails
+      // (e.g., session already expired). The server-side session is the
+      // source of truth; the UI just reflects it.
+      router.replace('/login');
+      setPending(false);
+    }
   }
 
   return (
