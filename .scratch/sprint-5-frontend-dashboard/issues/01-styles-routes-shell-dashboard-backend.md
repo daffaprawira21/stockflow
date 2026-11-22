@@ -4,7 +4,9 @@
 
 **Blocked by:** —
 
-**Status:** unclaimed
+**Status:** resolved
+
+**Implemented in:** Sprint 5 commit `fb58417` on `main`.
 
 - [x] Install Tailwind CSS: `tailwindcss@^4.3.5`, `@tailwindcss/postcss@^4.3.5`, and `postcss@^8.5.33` as direct dependencies in `package.json` (and `package-lock.json`).
 - [x] Add `postcss.config.mjs` exporting `{ plugins: { '@tailwindcss/postcss': {} } }`.
