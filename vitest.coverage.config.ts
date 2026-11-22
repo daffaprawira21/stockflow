@@ -20,6 +20,7 @@ export default defineConfig({
         'modules/products/**/*.ts',
         'modules/inventory/**/*.ts',
         'modules/orders/**/*.ts',
+        'modules/dashboard/**/*.ts',
       ],
       reporter: ['text', 'lcov'],
       thresholds: {
@@ -46,6 +47,12 @@ export default defineConfig({
           lines: 80,
         },
         'modules/orders/**/*.ts': {
+          statements: 80,
+          branches: 80,
+          functions: 80,
+          lines: 80,
+        },
+        'modules/dashboard/**/*.ts': {
           statements: 80,
           branches: 80,
           functions: 80,

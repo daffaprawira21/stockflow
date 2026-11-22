@@ -1,0 +1,313 @@
+@import "tailwindcss";
+
+/* StockFlow design tokens.
+   Swap these variables for your brand palette (dataviz skill → references/palette.md)
+   when moving from placeholder to production chrome. */
+:root {
+  /* Brand chrome */
+  --color-bg: #ffffff;
+  --color-bg-soft: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-border: #e5e9f0;
+  --color-ink: #1c2333;
+  --color-ink-muted: #5b6577;
+  --color-primary: #4f46e5;
+  --color-primary-soft: #eef1fe;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdecec;
+
+  /* Status */
+  --color-status-pending: #b45309;
+  --color-status-pending-bg: #fef3c7;
+  --color-status-confirmed: #1d4ed8;
+  --color-status-confirmed-bg: #dbeafe;
+  --color-status-shipped: #15803d;
+  --color-status-shipped-bg: #dcfce7;
+  --color-status-cancelled: #b91c1c;
+  --color-status-cancelled-bg: #fee2e2;
+
+  --radius-card: 12px;
+  --sidebar-width: 240px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1420;
+    --color-bg-soft: #151c2c;
+    --color-surface: #1a2234;
+    --color-border: #2a3550;
+    --color-ink: #e6ebf5;
+    --color-ink-muted: #9aa5bd;
+    --color-primary: #818cf8;
+    --color-primary-soft: #1e2650;
+    --color-danger: #f87171;
+    --color-danger-soft: #3a1520;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0f1420;
+  --color-bg-soft: #151c2c;
+  --color-surface: #1a2234;
+  --color-border: #2a3550;
+  --color-ink: #e6ebf5;
+  --color-ink-muted: #9aa5bd;
+  --color-primary: #818cf8;
+  --color-primary-soft: #1e2650;
+  --color-danger: #f87171;
+  --color-danger-soft: #3a1520;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Component classes used across the admin shell. These are thin wrappers
+   over Tailwind's utilities so pages read as readable JSX, not a class soup. */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 1rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.btn:hover {
+  background-color: var(--color-bg-soft);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 85%, black 15%);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: color-mix(in srgb, var(--color-danger) 85%, black 15%);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-pending {
+  background-color: var(--color-status-pending-bg);
+  color: var(--color-status-pending);
+}
+
+.badge-confirmed {
+  background-color: var(--color-status-confirmed-bg);
+  color: var(--color-status-confirmed);
+}
+
+.badge-shipped {
+  background-color: var(--color-status-shipped-bg);
+  color: var(--color-status-shipped);
+}
+
+.badge-cancelled {
+  background-color: var(--color-status-cancelled-bg);
+  color: var(--color-status-cancelled);
+}
+
+.badge-active {
+  background-color: var(--color-status-shipped-bg);
+  color: var(--color-status-shipped);
+}
+
+.badge-inactive {
+  background-color: var(--color-bg-soft);
+  color: var(--color-ink-muted);
+}
+
+/* Admin shell layout */
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sidebar a:hover {
+  background-color: var(--color-bg-soft);
+  color: var(--color-ink);
+}
+
+.sidebar a.active {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sidebar .sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+
+.main {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-card .label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+}
+
+.summary-card .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.form-error {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.form-success {
+  background-color: var(--color-status-shipped-bg);
+  color: var(--color-status-shipped);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
