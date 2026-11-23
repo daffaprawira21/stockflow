@@ -2,36 +2,30 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-type SummaryField = {
-  key:
-    | 'totalProducts'
-    | 'activeProducts'
-    | 'totalOrders'
-    | 'pendingOrders'
-    | 'confirmedOrders'
-    | 'shippedOrders'
-    | 'cancelledOrders'
-    | 'totalInventoryUnits';
-  label: string;
+type SummaryValue = {
+  totalProducts: number;
+  activeProducts: number;
+  totalOrders: number;
+  pendingOrders: number;
+  confirmedOrders: number;
+  shippedOrders: number;
+  cancelledOrders: number;
+  totalInventoryUnits: number;
 };
 
-const SUMMARY_FIELDS: SummaryField[] = [
-  { key: 'totalProducts', label: 'Total products' },
-  { key: 'activeProducts', label: 'Active products' },
-  { key: 'totalOrders', label: 'Total orders' },
-  { key: 'pendingOrders', label: 'Pending orders' },
-  { key: 'confirmedOrders', label: 'Confirmed orders' },
-  { key: 'shippedOrders', label: 'Shipped orders' },
-  { key: 'cancelledOrders', label: 'Cancelled orders' },
-  { key: 'totalInventoryUnits', label: 'Inventory units' },
-];
+type SummaryCard = {
+  label: string;
+  value: number;
+  href: string;
+};
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
-  // ponytail: hardcoded 127.0.0.1:3000 matches the documented dev server in
-  // the README ("Open http://localhost:3000"); the e2e harness runs on 3000
-  // and the perf-budget harness on 3300. Switch to a host/port env var
-  // (NEXT_PUBLIC_API_ORIGIN) when a separate frontend/backend split lands.
+
+  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
+  // component does not forward cookies, so the session cookie is attached
+  // explicitly. Absolute localhost URL keeps the request on the same host
+  // regardless of the port the dev server runs on.
   const res = await fetch('http://127.0.0.1:3000/api/dashboard/summary', {
     cache: 'no-store',
     headers: { cookie: cookieStore.toString() },
@@ -43,24 +37,45 @@ export default async function DashboardPage() {
 
   const body = (await res.json()) as {
     success: boolean;
-    data: Record<SummaryField['key'], number>;
+    data: SummaryValue;
   };
 
   if (!body.success) {
     redirect('/login');
   }
 
+  const summary = body.data;
+
+  const cards: SummaryCard[] = [
+    { label: 'Products', value: summary.totalProducts, href: '/products' },
+    { label: 'Active products', value: summary.activeProducts, href: '/products?isActive=true' },
+    { label: 'Inventory units', value: summary.totalInventoryUnits, href: '/inventory' },
+    { label: 'Orders', value: summary.totalOrders, href: '/orders' },
+    { label: 'Pending', value: summary.pendingOrders, href: '/orders?status=PENDING' },
+    { label: 'Confirmed', value: summary.confirmedOrders, href: '/orders?status=CONFIRMED' },
+    { label: 'Shipped', value: summary.shippedOrders, href: '/orders?status=SHIPPED' },
+    { label: 'Cancelled', value: summary.cancelledOrders, href: '/orders?status=CANCELLED' },
+  ];
+
   return (
-    <div className="summary-grid">
-      {SUMMARY_FIELDS.map((field) => (
-        <div key={field.key} className="card summary-card">
-          <span className="label">{field.label}</span>
-          <span className="value">{body.data[field.key]}</span>
-        </div>
-      ))}
-      <Link href="/products" className="btn btn-primary">
-        Manage products
-      </Link>
+    <div>
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Dashboard</h1>
+      </div>
+      <div className="summary-grid">
+        {cards.map((card) => (
+          <Link
+            key={card.label}
+            // ponytail: query-string href not in static Route type; cast is safe.
+            href={card.href as never}
+            className="card summary-card"
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            <span className="label">{card.label}</span>
+            <span className="value">{card.value}</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
