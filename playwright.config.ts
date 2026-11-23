@@ -17,6 +17,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  fullyParallel: false,
+  workers: 1,
   webServer: {
     command: 'node scripts/start-e2e-server.mjs',
     url: 'http://127.0.0.1:3000',
