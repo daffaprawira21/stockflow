@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductsFilters } from './products-filters';
+import { DateDisplay } from '@/components/DateDisplay';
 
 type Product = {
   id: string;
@@ -66,13 +67,6 @@ export default async function ProductsPage({
       minimumFractionDigits: 2,
     }).format(Number(value));
 
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    }).format(new Date(value));
-
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -121,7 +115,7 @@ export default async function ProductsPage({
                     {product.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td>{formatDate(product.updatedAt)}</td>
+                <td><DateDisplay value={product.updatedAt} /></td>
                 <td>
                   <Link href={`/products/${product.id}`} className="btn">
                     View

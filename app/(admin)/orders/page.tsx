@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrdersFilters } from './orders-filters';
+import { DateDisplay } from '@/components/DateDisplay';
 
 type OrderSummary = {
   id: string;
@@ -91,13 +92,6 @@ export default async function OrdersPage({
       minimumFractionDigits: 2,
     }).format(Number(value));
 
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    }).format(new Date(value));
-
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -140,7 +134,7 @@ export default async function OrdersPage({
                   </span>
                 </td>
                 <td>{formatMoney(order.totalAmount)}</td>
-                <td>{formatDate(order.createdAt)}</td>
+                <td><DateDisplay value={order.createdAt} /></td>
                 <td>
                   <Link href={`/orders/${order.id}`} className="btn">
                     View

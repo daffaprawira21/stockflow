@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { MovementsFilters } from './movements-filters';
+import { DateDisplay } from '@/components/DateDisplay';
 
 type Movement = {
   id: string;
@@ -84,13 +85,6 @@ export default async function StockMovementsPage({
     notFound();
   }
 
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    }).format(new Date(value));
-
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -122,7 +116,7 @@ export default async function StockMovementsPage({
           <tbody>
             {body.data.map((movement) => (
               <tr key={movement.id}>
-                <td>{formatDate(movement.createdAt)}</td>
+                <td><DateDisplay value={movement.createdAt} /></td>
                 <td>{movement.movementType}</td>
                 <td style={{ color: movement.quantityDelta > 0 ? 'var(--color-status-shipped)' : 'var(--color-danger)' }}>
                   {movement.quantityDelta > 0 ? `+${movement.quantityDelta}` : movement.quantityDelta}

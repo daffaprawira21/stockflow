@@ -23,6 +23,30 @@ This project is being developed as a software engineering learning project and d
 npm install
 ```
 
+### Set up the database
+
+StockFlow uses PostgreSQL. Ensure PostgreSQL is running on `localhost:5432` (installed service or portable binaries). Create the databases if they do not exist yet:
+
+```sql
+CREATE DATABASE stockflow;
+CREATE DATABASE stockflow_test;
+```
+
+Set the `postgres` superuser password (default in `.env` is `postgres`):
+
+```sql
+ALTER USER postgres PASSWORD 'postgres';
+```
+
+Copy `.env.example` to `.env` if it does not exist yet, then apply migrations and seed the administrator:
+
+```bash
+npm run db:deploy
+npm run db:seed
+```
+
+The seeded administrator is `admin@example.com` / `local-development-password` (values from `.env`).
+
 ### Run the development server
 
 ```bash
@@ -31,22 +55,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view StockFlow.
 
-### Set up the database
-
-StockFlow uses PostgreSQL. On this machine PostgreSQL 17 runs from portable binaries, so it is not registered as a Windows service:
-
-```powershell
-$env:PGPASSWORD='postgres'
-& "$env:LOCALAPPDATA\stockflow\pgsql\bin\pg_ctl.exe" -D "$env:LOCALAPPDATA\stockflow\data" -l "$env:LOCALAPPDATA\stockflow\log\server.log" start
-```
-
-Stop it with the same command using `stop`. The cluster listens on `localhost:5432` with the `postgres` superuser and the `stockflow` and `stockflow_test` databases.
-
-Copy `.env.example` to `.env`, then apply migrations and seed the administrator:
+### Run the production server
 
 ```bash
-npm run db:deploy
-npm run db:seed
+npm run build
+npm start
 ```
 
 Prisma is pinned to `7.10.1` on purpose. The `latest` npm tag currently points at an 8.0 release candidate that no longer provides `migrate` or `generate`, so always use the local scripts or `npx prisma@7.10.1`.

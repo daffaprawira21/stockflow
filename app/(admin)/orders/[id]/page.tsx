@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrderActions } from './order-actions';
+import { DateDisplay } from '@/components/DateDisplay';
 
 type OrderItem = {
   productId: string;
@@ -104,13 +105,6 @@ export default async function OrderPage({
       minimumFractionDigits: 2,
     }).format(Number(value));
 
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    }).format(new Date(value));
-
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -135,7 +129,7 @@ export default async function OrderPage({
           <dd>{formatMoney(order.totalAmount)}</dd>
 
           <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Created</dt>
-          <dd>{formatDate(order.createdAt)}</dd>
+          <dd><DateDisplay value={order.createdAt} /></dd>
         </dl>
       </div>
 
@@ -184,7 +178,7 @@ export default async function OrderPage({
                   </span>
                 </td>
                 <td>{entry.reason ?? '—'}</td>
-                <td>{formatDate(entry.createdAt)}</td>
+                <td><DateDisplay value={entry.createdAt} /></td>
               </tr>
             ))}
           </tbody>
