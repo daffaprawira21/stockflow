@@ -23,11 +23,6 @@ export function InventoryFilters({ search, lowStock, page }: InventoryFiltersPro
       }
     });
 
-    // Reset to page 1 when filters change
-    if (!params.page) {
-      newParams.delete('page');
-    }
-
     router.push(`/inventory?${newParams.toString()}`);
   }
 
@@ -37,7 +32,7 @@ export function InventoryFilters({ search, lowStock, page }: InventoryFiltersPro
         type="search"
         placeholder="Search by name or SKU…"
         value={search}
-        onChange={(event) => updateParams({ search: event.target.value })}
+        onChange={(event) => updateParams({ search: event.target.value, page: '' })}
         style={{
           padding: '0.5rem 0.75rem',
           border: '1px solid var(--color-border)',
@@ -52,7 +47,7 @@ export function InventoryFilters({ search, lowStock, page }: InventoryFiltersPro
         step="1"
         placeholder="Low stock ≤"
         value={lowStock}
-        onChange={(event) => updateParams({ lowStock: event.target.value })}
+        onChange={(event) => updateParams({ lowStock: event.target.value, page: '' })}
         style={{
           width: '8rem',
           padding: '0.5rem 0.75rem',

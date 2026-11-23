@@ -48,6 +48,28 @@ export default async function StockMovementsPage({
     notFound();
   }
 
+  // 400/422 are query-param validation errors (bad movementType, page, lowStock);
+  // show an empty table rather than a misleading 404 page.
+  if (res.status === 400 || res.status === 422) {
+    return (
+      <div>
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Stock movements</h1>
+            <Link href="/inventory" className="btn">
+              Back to inventory
+            </Link>
+          </div>
+        </div>
+        <div className="card">
+          <p style={{ color: 'var(--color-ink-muted)' }}>
+            The filter query is invalid. Clear the movement-type filter and try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!res.ok) {
     redirect('/login');
   }

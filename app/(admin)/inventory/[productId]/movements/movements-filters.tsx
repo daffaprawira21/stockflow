@@ -31,11 +31,6 @@ export function MovementsFilters({ movementType, page }: MovementsFiltersProps) 
       }
     });
 
-    // Reset to page 1 when filters change
-    if (!params.page) {
-      newParams.delete('page');
-    }
-
     const query = newParams.toString();
     // ponytail: dynamic path not in static Route type; cast is safe, upgrade when
     // the route is registered in generated types.
@@ -46,7 +41,7 @@ export function MovementsFilters({ movementType, page }: MovementsFiltersProps) 
     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
       <select
         value={movementType}
-        onChange={(event) => updateParams({ movementType: event.target.value })}
+        onChange={(event) => updateParams({ movementType: event.target.value, page: '' })}
         style={{
           padding: '0.5rem 0.75rem',
           border: '1px solid var(--color-border)',

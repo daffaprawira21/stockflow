@@ -57,27 +57,31 @@ export function AdjustStockForm() {
   const searchParams = useSearchParams();
   const id = useId();
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [productId, setProductId] = useState(searchParams.get('product') ?? '');
   const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT'>('ADJUSTMENT_IN');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   function loadProducts() {
     if (products) return;
 
     fetch('/api/inventory?limit=100', { cache: 'no-store' })
       .then((response) => {
-        if (!response.ok) return;
+        if (!response.ok) {
+          setProductsError('Could not load products. Please try again.');
+          return;
+        }
         return response.json();
       })
       .then((body: { success: boolean; data: Product[] } | undefined) => {
         if (body?.success) setProducts(body.data);
       })
       .catch(() => {
-        setProducts([]);
+        setProductsError('Could not load products. Please try again.');
       });
   }
 
@@ -103,13 +107,13 @@ export function AdjustStockForm() {
 
     const validationError = validate();
     if (validationError) {
-      setFormError(validationError);
+      setValidationError(validationError);
       return;
     }
 
-    setFormError(null);
+    setValidationError(null);
     setPending(true);
-    setError(null);
+    setSubmitError(null);
 
     try {
       const response = await fetch('/api/inventory/adjustments', {
@@ -125,14 +129,14 @@ export function AdjustStockForm() {
 
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(body));
+        setSubmitError(errorMessage(body));
         return;
       }
 
       router.refresh();
       router.push('/inventory');
     } catch {
-      setError('Network error. Please try again.');
+      setSubmitError('Network error. Please try again.');
     } finally {
       setPending(false);
     }
@@ -140,8 +144,8 @@ export function AdjustStockForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {formError ? <div className="form-error">{formError}</div> : null}
-      {error ? <div className="form-error">{error}</div> : null}
+      {validationError ? <div className="form-error">{validationError}</div> : null}
+      {submitError ? <div className="form-error">{submitError}</div> : null}
 
       <div className="field">
         <label htmlFor={`${id}-productId`}>Product</label>
@@ -161,6 +165,7 @@ export function AdjustStockForm() {
             </option>
           ))}
         </select>
+        {productsError ? <div className="form-error">{productsError}</div> : null}
       </div>
 
       <div className="field">
