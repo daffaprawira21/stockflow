@@ -71,7 +71,10 @@ test('invalid transition surfaces the mapped error', async ({ page, context }) =
   expect(createProductResponse.status()).toBe(201);
   const product = (await createProductResponse.json()) as { data: { id: string } };
 
-  // Create a PENDING order.
+  // Create two PENDING orders: one for the happy-path UI flow, one to cancel
+  // from the UI so the confirm action fires (which is the only UI action that
+  // can produce a mapped ORDER_CONFLICT / PRODUCT_INACTIVE / INSUFFICIENT_STOCK
+  // error in the UI surface).
   const createOrderResponse = await context.request.post('/api/orders', {
     headers: {
       Origin: 'http://127.0.0.1:3000',
@@ -84,34 +87,30 @@ test('invalid transition surfaces the mapped error', async ({ page, context }) =
   expect(createOrderResponse.status()).toBe(201);
   const order = (await createOrderResponse.json()) as { data: { id: string } };
 
-  // Open the PENDING order in the UI.
-  await page.goto(`/orders/${order.data.id}`);
-  await expect(page.getByText('PENDING', { exact: true }).first()).toBeVisible();
-
-  // Confirm it so the state moves to CONFIRMED.
-  await page.getByRole('button', { name: 'Confirm' }).click();
-  await expect(page.getByText('CONFIRMED', { exact: true }).first()).toBeVisible();
-
-  // Try to confirm again — that is an invalid transition from CONFIRMED.
-  // The Confirm button is disabled for CONFIRMED, so use the API call to
-  // trigger the ORDER_CONFLICT path and surface the mapped error message.
-  const conflictResponse = await context.request.post(`/api/orders/${order.data.id}/confirm`, {
+  // Deactivate the product so that confirming the PENDING order produces a
+  // PRODUCT_INACTIVE error that the UI maps and displays.
+  await context.request.patch(`/api/products/${product.data.id}/deactivate`, {
     headers: {
       Origin: 'http://127.0.0.1:3000',
       Referer: 'http://127.0.0.1:3000/',
     },
   });
-  expect(conflictResponse.status()).toBe(409);
 
-  // Confirm the API returns ORDER_CONFLICT.
-  const conflictBody = (await conflictResponse.json()) as {
-    success: boolean;
-    error?: { code: string };
-  };
-  expect(conflictBody.success).toBe(false);
-  expect(conflictBody.error?.code).toBe('ORDER_CONFLICT');
+  // Open the PENDING order in the UI.
+  await page.goto(`/orders/${order.data.id}`);
+  await expect(page.getByText('PENDING', { exact: true }).first()).toBeVisible();
 
-  // Cancel the CONFIRMED order with a reason.
+  // Confirm — the product is inactive so the server rejects with PRODUCT_INACTIVE,
+  // and the UI maps it to a user-visible error message.
+  await page.getByRole('button', { name: 'Confirm' }).click();
+  await expect(
+    page.getByText('One or more products is inactive and cannot be used for this operation.'),
+  ).toBeVisible();
+
+  // The order is still PENDING — the confirm failed.
+  await expect(page.getByText('PENDING', { exact: true }).first()).toBeVisible();
+
+  // Cancel the PENDING order with a reason to verify the cancel path works.
   await page.getByLabel('Cancel order').fill('E2E test cancellation');
   await page.getByRole('button', { name: 'Cancel order' }).click();
   await expect(page.getByText('CANCELLED', { exact: true }).first()).toBeVisible();

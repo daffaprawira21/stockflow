@@ -70,6 +70,33 @@ export default async function OrderPage({
 
   const order = body.data;
 
+  // Fetch product names for the items table (best-effort; fall back to UUID on failure).
+  const productIds = [...new Set(order.items.map((item) => item.productId))];
+  const productRefs = new Map<string, string>();
+  if (productIds.length > 0) {
+    try {
+      // ponytail: batch lookup via individual fetches; a products/batch endpoint
+      // or a richer order-detail serializer would replace this.
+      const results = await Promise.all(
+        productIds.map(async (productId) => {
+          const pRes = await fetch(`http://127.0.0.1:3000/api/products/${productId}`, {
+            cache: 'no-store',
+            headers: { cookie: cookieStore.toString() },
+          });
+          if (!pRes.ok) return [productId, ''] as const;
+          const pBody = (await pRes.json()) as { success: boolean; data?: { sku: string; name: string } };
+          if (!pBody.success || !pBody.data) return [productId, ''] as const;
+          return [productId, `${pBody.data.sku} — ${pBody.data.name}`] as const;
+        }),
+      );
+      results.forEach(([productId, ref]) => {
+        if (ref !== '') productRefs.set(productId, ref);
+      });
+    } catch {
+      // Non-fatal: show raw product IDs if the lookup fails.
+    }
+  }
+
   const formatMoney = (value: string) =>
     new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -126,7 +153,7 @@ export default async function OrderPage({
           <tbody>
             {order.items.map((item) => (
               <tr key={item.productId}>
-                <td>{item.productId}</td>
+                <td>{productRefs.get(item.productId) ?? item.productId}</td>
                 <td>{item.quantity}</td>
                 <td>{formatMoney(item.unitPrice)}</td>
                 <td>{formatMoney(item.subtotal)}</td>

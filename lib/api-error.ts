@@ -34,7 +34,7 @@ export function sharedErrorMessage(body: ApiErrorBody | null): string {
       return 'Please fix the validation errors and try again.';
     }
     case 'PRODUCT_INACTIVE':
-      return 'One or more products in this order is inactive; the order cannot be confirmed.';
+      return 'One or more products is inactive and cannot be used for this operation.';
     case 'INSUFFICIENT_STOCK': {
       const detail = body.error.details?.[0];
       if (detail?.availableQuantity !== undefined) {
