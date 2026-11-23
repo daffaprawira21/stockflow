@@ -3,43 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-
-type ApiErrorBody = {
-  success: boolean;
-  data?: unknown;
-  error?: {
-    code: string;
-    message: string;
-    details?: Array<{
-      field?: string;
-      origin?: string;
-      message?: string;
-    }>;
-  };
-};
+import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
 
 function errorMessage(body: ApiErrorBody | null): string {
-  if (!body || body.success) return 'Something went wrong. Please try again.';
-
-  switch (body.error?.code) {
-    case 'SKU_ALREADY_EXISTS':
-      return 'A product with this SKU already exists.';
-    case 'VALIDATION_ERROR': {
-      const details = body.error.details ?? [];
-      if (details.length > 0) {
-        const first = details[0];
-        if (first.message) return first.message;
-        if (first.field) return `Invalid ${first.field}`;
-      }
-      return 'Please fix the validation errors and try again.';
-    }
-    case 'FORBIDDEN':
-      return 'You are not authorized to perform this action.';
-    case 'UNAUTHENTICATED':
-      return 'Your session has expired. Please sign in again.';
-    default:
-      return body.error?.message ?? 'Something went wrong. Please try again.';
+  if (body?.error?.code === 'SKU_ALREADY_EXISTS') {
+    return 'A product with this SKU already exists.';
   }
+  return sharedErrorMessage(body);
 }
 
 export function CreateProductForm() {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
+import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
 
 type Product = {
   productId: string;
@@ -17,53 +18,14 @@ type OrderItemInput = {
   quantity: number;
 };
 
-type ApiErrorBody = {
-  success: boolean;
-  data?: unknown;
-  error?: {
-    code: string;
-    message: string;
-    details?: Array<{
-      field?: string;
-      productId?: string;
-      requestedQuantity?: number;
-      availableQuantity?: number;
-      message?: string;
-    }>;
-  };
-};
-
 function errorMessage(body: ApiErrorBody | null): string {
-  if (!body || body.success) return 'Something went wrong. Please try again.';
-
-  switch (body.error?.code) {
+  switch (body?.error?.code) {
     case 'IDEMPOTENCY_CONFLICT':
       return 'This order was already submitted with different items. Retry with the same items.';
     case 'IDEMPOTENCY_REQUEST_IN_PROGRESS':
       return 'Your previous submission is still being processed. Wait a moment, then retry with the same items.';
-    case 'PRODUCT_INACTIVE':
-      return 'One or more products is inactive and cannot be ordered.';
-    case 'INSUFFICIENT_STOCK': {
-      const detail = body.error.details?.[0];
-      if (detail?.availableQuantity !== undefined) {
-        return `Insufficient stock: ${detail.availableQuantity} available, ${detail.requestedQuantity} requested.`;
-      }
-      return 'Insufficient stock for one or more items.';
-    }
-    case 'VALIDATION_ERROR': {
-      const details = body.error.details ?? [];
-      if (details.length > 0) {
-        const first = details[0];
-        if (first.message) return first.message;
-      }
-      return 'Please fix the validation errors and try again.';
-    }
-    case 'FORBIDDEN':
-      return 'You are not authorized to perform this action.';
-    case 'UNAUTHENTICATED':
-      return 'Your session has expired. Please sign in again.';
     default:
-      return body.error?.message ?? 'Something went wrong. Please try again.';
+      return sharedErrorMessage(body);
   }
 }
 
@@ -111,7 +73,6 @@ export function CreateOrderForm() {
   }
 
   function validate(): string | null {
-    const seen = new Set<string>();
     for (const row of rows) {
       if (!row.productId) {
         return 'Every item needs a product.';
@@ -120,10 +81,6 @@ export function CreateOrderForm() {
       if (row.quantity === '' || !Number.isInteger(parsed) || parsed <= 0) {
         return 'Every item needs a positive whole quantity.';
       }
-      if (seen.has(row.productId)) {
-        return 'The same product appears more than once. Use one row per product.';
-      }
-      seen.add(row.productId);
     }
     return null;
   }
@@ -205,13 +162,12 @@ export function CreateOrderForm() {
                 required
               >
                 <option value="">Select a product…</option>
-                {(products ?? [])
-                  .filter((product) => product.isActive)
-                  .map((product) => (
-                    <option key={product.productId} value={product.productId}>
-                      {product.sku} — {product.productName} (stock {product.stock})
-                    </option>
-                  ))}
+                {(products ?? []).map((product) => (
+                  <option key={product.productId} value={product.productId}>
+                    {product.sku} — {product.productName} (stock {product.stock}
+                    {product.isActive ? '' : ', inactive'})
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field" style={{ flex: '0 0 8rem', marginBottom: 0 }}>

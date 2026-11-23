@@ -2,54 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
-
-type ApiErrorBody = {
-  success: boolean;
-  data?: unknown;
-  error?: {
-    code: string;
-    message: string;
-    details?: Array<{
-      field?: string;
-      productId?: string;
-      requestedQuantity?: number;
-      availableQuantity?: number;
-      message?: string;
-    }>;
-  };
-};
+import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
 
 function errorMessage(body: ApiErrorBody | null): string {
-  if (!body || body.success) return 'Something went wrong. Please try again.';
-
-  switch (body.error?.code) {
+  switch (body?.error?.code) {
     case 'ORDER_CONFLICT':
       return 'This order is no longer in a state that allows that action.';
     case 'INVALID_ORDER_STATE':
       return 'That action is not allowed for this order\'s current status.';
-    case 'PRODUCT_INACTIVE':
-      return 'One or more products in this order is inactive; the order cannot be confirmed.';
-    case 'INSUFFICIENT_STOCK': {
-      const detail = body.error.details?.[0];
-      if (detail?.availableQuantity !== undefined) {
-        return `Insufficient stock: ${detail.availableQuantity} available, ${detail.requestedQuantity} requested.`;
-      }
-      return 'Insufficient stock for one or more items.';
-    }
-    case 'VALIDATION_ERROR': {
-      const details = body.error.details ?? [];
-      if (details.length > 0) {
-        const first = details[0];
-        if (first.message) return first.message;
-      }
-      return 'Please fix the validation errors and try again.';
-    }
-    case 'FORBIDDEN':
-      return 'You are not authorized to perform this action.';
-    case 'UNAUTHENTICATED':
-      return 'Your session has expired. Please sign in again.';
     default:
-      return body.error?.message ?? 'Something went wrong. Please try again.';
+      return sharedErrorMessage(body);
   }
 }
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
+import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
 
 type Product = {
   productId: string;
@@ -12,43 +13,14 @@ type Product = {
   isActive: boolean;
 };
 
-type ApiErrorBody = {
-  success: boolean;
-  data?: unknown;
-  error?: {
-    code: string;
-    message: string;
-    details?: Array<{
-      field?: string;
-      origin?: string;
-      message?: string;
-    }>;
-  };
-};
-
 function errorMessage(body: ApiErrorBody | null): string {
-  if (!body || body.success) return 'Something went wrong. Please try again.';
-
-  switch (body.error?.code) {
+  switch (body?.error?.code) {
     case 'INVALID_ADJUSTMENT':
       return 'Adjustment rejected: resulting stock must stay within 0 and 2,147,483,647.';
     case 'RESOURCE_NOT_FOUND':
       return 'Product not found.';
-    case 'VALIDATION_ERROR': {
-      const details = body.error.details ?? [];
-      if (details.length > 0) {
-        const first = details[0];
-        if (first.message) return first.message;
-        if (first.field) return `Invalid ${first.field}`;
-      }
-      return 'Please fix the validation errors and try again.';
-    }
-    case 'FORBIDDEN':
-      return 'You are not authorized to perform this action.';
-    case 'UNAUTHENTICATED':
-      return 'Your session has expired. Please sign in again.';
     default:
-      return body.error?.message ?? 'Something went wrong. Please try again.';
+      return sharedErrorMessage(body);
   }
 }
 
