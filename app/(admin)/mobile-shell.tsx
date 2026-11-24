@@ -67,9 +67,8 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
             <path d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <div className="mobile-bar-brand">
+        <div className="mobile-bar-brand" aria-hidden>
           <Logo style={{ width: 28, height: 28 }} />
-          <span>StockFlow</span>
         </div>
       </div>
 

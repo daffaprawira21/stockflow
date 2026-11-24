@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Pagination } from '@/components/ui/Pagination';
 
 const MOVEMENT_TYPES = [
@@ -26,6 +26,7 @@ export function MovementsFilters({
 }: MovementsFiltersProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   function setParam(key: string, value: string, extra?: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -39,7 +40,7 @@ export function MovementsFilters({
     }
     const qs = params.toString();
     // ponytail: dynamic path not in static Route type; cast is safe.
-    window.location.assign((qs ? `${pathname}?${qs}` : pathname) as never);
+    router.push((qs ? `${pathname}?${qs}` : pathname) as never);
   }
 
   return (

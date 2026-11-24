@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Pagination } from '@/components/ui/Pagination';
 
@@ -24,6 +24,7 @@ export function ProductsFilters({
   totalItems,
 }: ProductsFiltersProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   function setParam(key: string, value: string, extra?: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -36,7 +37,7 @@ export function ProductsFilters({
       });
     }
     const qs = params.toString();
-    window.location.assign(`/products${qs ? `?${qs}` : ''}`);
+    router.push((`/products${qs ? `?${qs}` : ''}`) as never);
   }
 
   return (

@@ -63,11 +63,15 @@ export function AdjustStockForm() {
       });
   }
 
-  // Auto-load when the page opened with a ?product= param.
+  // Auto-load when the page opened with a ?product= param. Deferred one tick
+  // so no setState runs synchronously in the effect body (lint: cascading
+  // renders). `loadProducts` guards against duplicate fetches.
   useEffect(() => {
-    if (productId) loadProducts();
+    if (!productId) return;
+    const id = requestAnimationFrame(() => loadProducts());
+    return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [productId]);
 
   function validate(): string | null {
     if (!productId) {

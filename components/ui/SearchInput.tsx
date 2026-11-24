@@ -13,35 +13,38 @@ type SearchInputProps = {
 
 export function SearchInput({ value, placeholder, basePath }: SearchInputProps) {
   const router = useRouter();
-  const [local, setLocal] = useState(value);
+  const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
 
-  // Keep in sync when the URL changes elsewhere (e.g. navigation).
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
+  // Show the URL value unless the user is mid-typing (debounce in flight).
+  const shown = editing ? draft : value;
 
-  // Debounce 300ms.
+  // Debounce the in-flight keystroke into a URL push.
   useEffect(() => {
-    if (local === value) return;
+    if (!editing || draft === value) return;
     const timer = setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
-      if (local === '') params.delete('search');
-      else params.set('search', local);
+      if (draft === '') params.delete('search');
+      else params.set('search', draft);
       params.delete('page');
       const qs = params.toString();
       router.push((`${basePath}${qs ? `?${qs}` : ''}`) as never);
+      setEditing(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [local, value, router, basePath]);
+  }, [draft, value, editing, router, basePath]);
 
   return (
     <div className="topbar-search" style={{ maxWidth: 'none' }}>
       <SearchIcon style={{ width: 14, height: 14 }} />
       <input
         type="search"
-        value={local}
+        value={shown}
         placeholder={placeholder}
-        onChange={(e) => setLocal(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setEditing(true);
+        }}
         style={{
           border: 'none',
           outline: 'none',
@@ -53,10 +56,13 @@ export function SearchInput({ value, placeholder, basePath }: SearchInputProps) 
         }}
         aria-label={placeholder}
       />
-      {local !== '' ? (
+      {shown !== '' ? (
         <button
           type="button"
-          onClick={() => setLocal('')}
+          onClick={() => {
+            setDraft('');
+            setEditing(true);
+          }}
           style={{
             border: 'none',
             background: 'transparent',
