@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { AlertIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
   if (body?.error?.code === 'SKU_ALREADY_EXISTS') {
@@ -57,7 +58,12 @@ export function CreateProductForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {error ? <div className="form-error">{error}</div> : null}
+      {error ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{error}</span>
+        </div>
+      ) : null}
 
       <div className="field">
         <label htmlFor="sku">SKU</label>
@@ -95,40 +101,49 @@ export function CreateProductForm() {
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="price">Price (IDR)</label>
-        <input
-          id="price"
-          name="price"
-          type="number"
-          step="0.01"
-          min="0"
-          value={price}
-          onChange={(event) => setPrice(event.target.value)}
-          required
-          placeholder="150000"
-        />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="field">
+          <label htmlFor="price">Price (IDR)</label>
+          <input
+            id="price"
+            name="price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            required
+            placeholder="150000"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="initialStock">Initial stock</label>
+          <input
+            id="initialStock"
+            name="initialStock"
+            type="number"
+            step="1"
+            min="0"
+            value={initialStock}
+            onChange={(event) => setInitialStock(event.target.value)}
+            required
+          />
+        </div>
       </div>
 
-      <div className="field">
-        <label htmlFor="initialStock">Initial stock</label>
-        <input
-          id="initialStock"
-          name="initialStock"
-          type="number"
-          step="1"
-          min="0"
-          value={initialStock}
-          onChange={(event) => setInitialStock(event.target.value)}
-          required
-        />
-      </div>
-
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? 'Creating…' : 'Create product'}
+          {pending ? (
+            <>
+              <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+              Creating…
+            </>
+          ) : (
+            'Create product'
+          )}
         </button>
         <Link href="/products" className="btn">
+          <XIcon style={{ width: 14, height: 14 }} />
           Cancel
         </Link>
       </div>

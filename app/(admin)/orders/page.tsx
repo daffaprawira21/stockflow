@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrdersFilters } from './orders-filters';
 import { DateDisplay } from '@/components/DateDisplay';
+import { Badge, type BadgeStatus } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PlusIcon } from '@/components/ui/Icons';
 
 type OrderSummary = {
   id: string;
@@ -12,11 +15,11 @@ type OrderSummary = {
   createdAt: string;
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'badge-pending',
-  CONFIRMED: 'badge-confirmed',
-  SHIPPED: 'badge-shipped',
-  CANCELLED: 'badge-cancelled',
+const STATUS_META: Record<string, { status: BadgeStatus; label: string }> = {
+  PENDING: { status: 'pending', label: 'Pending' },
+  CONFIRMED: { status: 'confirmed', label: 'Confirmed' },
+  SHIPPED: { status: 'shipped', label: 'Shipped' },
+  CANCELLED: { status: 'cancelled', label: 'Cancelled' },
 };
 
 export default async function OrdersPage({
@@ -54,15 +57,14 @@ export default async function OrdersPage({
   if (res.status === 400 || res.status === 422) {
     return (
       <div>
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Orders</h1>
-            <Link href="/orders/create" className="btn btn-primary">
-              Create order
-            </Link>
-          </div>
+        <div className="page-header">
+          <h1 className="page-title">Orders</h1>
+          <Link href="/orders/create" className="btn btn-primary">
+            <PlusIcon style={{ width: 14, height: 14 }} />
+            Create order
+          </Link>
         </div>
-        <div className="card">
+        <div className="card card-flat">
           <p style={{ color: 'var(--color-ink-muted)' }}>
             The filter query is invalid. Clear the filters and try again.
           </p>
@@ -94,62 +96,78 @@ export default async function OrdersPage({
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Orders</h1>
-          <Link href="/orders/create" className="btn btn-primary">
-            Create order
-          </Link>
-        </div>
+      <div className="page-header">
+        <h1 className="page-title">Orders</h1>
+        <Link href="/orders/create" className="btn btn-primary">
+          <PlusIcon style={{ width: 14, height: 14 }} />
+          Create order
+        </Link>
       </div>
 
-      <div className="card">
+      <div className="card card-flat">
         <OrdersFilters
           search={search}
           status={status ?? ''}
           sortBy={sortBy}
           sortOrder={sortOrder}
           page={page}
+          totalPages={body.meta.totalPages}
+          totalItems={body.meta.totalItems}
         />
-      </div>
 
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Status</th>
-              <th>Total</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {body.data.map((order) => (
-              <tr key={order.id}>
-                <td>{order.orderNumber}</td>
-                <td>
-                  <span className={`badge ${STATUS_BADGE[order.status] ?? ''}`}>
-                    {order.status}
-                  </span>
-                </td>
-                <td>{formatMoney(order.totalAmount)}</td>
-                <td><DateDisplay value={order.createdAt} /></td>
-                <td>
-                  <Link href={`/orders/${order.id}`} className="btn">
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {body.meta.totalItems > 0 ? (
-          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>
-            {body.meta.totalItems} order{body.meta.totalItems === 1 ? '' : 's'}
-          </p>
+        {body.data.length === 0 ? (
+          <EmptyState
+            title="No orders found."
+            subtitle={
+              search
+                ? `Nothing matches “${search}”. Try a different search.`
+                : 'Create your first order to get started.'
+            }
+            action={
+              <Link href="/orders/create" className="btn btn-primary">
+                Create order
+              </Link>
+            }
+          />
         ) : (
-          <p style={{ color: 'var(--color-ink-muted)' }}>No orders found.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Total</th>
+                  <th scope="col">Created</th>
+                  <th scope="col" style={{ width: 64 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {body.data.map((order) => {
+                  const meta = STATUS_META[order.status] ?? {
+                    status: 'inactive' as BadgeStatus,
+                    label: order.status,
+                  };
+                  return (
+                    <tr key={order.id}>
+                      <td className="tabular-nums">{order.orderNumber}</td>
+                      <td>
+                        <Badge status={meta.status}>{meta.label}</Badge>
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {formatMoney(order.totalAmount)}
+                      </td>
+                      <td><DateDisplay value={order.createdAt} /></td>
+                      <td>
+                        <Link href={`/orders/${order.id}`} className="btn btn-compact">
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

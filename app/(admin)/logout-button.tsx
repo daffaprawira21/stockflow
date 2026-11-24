@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { LogOutIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -22,7 +23,18 @@ export function LogoutButton() {
   }
 
   return (
-    <button type="button" onClick={handleLogout} disabled={pending}>
+    <button
+      type="button"
+      onClick={handleLogout}
+      disabled={pending}
+      className="btn btn-ghost"
+      style={{ width: '100%', justifyContent: 'flex-start' }}
+    >
+      {pending ? (
+        <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+      ) : (
+        <LogOutIcon style={{ width: 14, height: 14 }} />
+      )}
       {pending ? 'Signing out…' : 'Sign out'}
     </button>
   );

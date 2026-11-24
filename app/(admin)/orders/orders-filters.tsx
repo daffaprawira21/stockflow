@@ -1,6 +1,8 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Pagination } from '@/components/ui/Pagination';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -16,81 +18,80 @@ type OrdersFiltersProps = {
   sortBy: string;
   sortOrder: string;
   page: number;
+  totalPages: number;
+  totalItems: number;
 };
 
-export function OrdersFilters({ search, status, sortBy, sortOrder, page }: OrdersFiltersProps) {
-  const router = useRouter();
+export function OrdersFilters({
+  search,
+  status,
+  sortBy,
+  sortOrder,
+  page,
+  totalPages,
+  totalItems,
+}: OrdersFiltersProps) {
   const searchParams = useSearchParams();
 
-  function updateParams(params: Record<string, string>) {
-    const newParams = new URLSearchParams(searchParams.toString());
-
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === '') {
-        newParams.delete(key);
-      } else {
-        newParams.set(key, value);
-      }
-    });
-
-    router.push(`/orders?${newParams.toString()}`);
+  function setParam(key: string, value: string, extra?: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === '') params.delete(key);
+    else params.set(key, value);
+    if (extra) {
+      Object.entries(extra).forEach(([k, v]) => {
+        if (v === '') params.delete(k);
+        else params.set(k, v);
+      });
+    }
+    const qs = params.toString();
+    window.location.assign(`/orders${qs ? `?${qs}` : ''}`);
   }
 
-  const inputStyle = {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    color: 'var(--color-ink)',
-  };
-
   return (
-    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-      <input
-        type="search"
-        placeholder="Search by order number…"
-        value={search}
-        onChange={(event) => updateParams({ search: event.target.value, page: '' })}
-        style={inputStyle}
-      />
-      <select
-        value={status}
-        onChange={(event) => updateParams({ status: event.target.value, page: '' })}
-        style={inputStyle}
-      >
-        {STATUS_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <select
-        value={`${sortBy}:${sortOrder}`}
-        onChange={(event) => {
-          const [field, direction] = event.target.value.split(':');
-          updateParams({ sortBy: field, sortOrder: direction, page: '' });
-        }}
-        style={inputStyle}
-      >
-        <option value="createdAt:desc">Created ↓</option>
-        <option value="createdAt:asc">Created ↑</option>
-        <option value="orderNumber:desc">Number ↓</option>
-        <option value="orderNumber:asc">Number ↑</option>
-      </select>
-      {page > 1 ? (
-        <button
-          type="button"
-          className="btn"
-          onClick={() => updateParams({ page: String(page - 1) })}
+    <div>
+      <div className="filter-bar">
+        <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+          <SearchInput
+            value={search}
+            placeholder="Search by order number…"
+            basePath="/orders"
+          />
+        </div>
+        <select
+          value={status}
+          onChange={(event) => setParam('status', event.target.value, { page: '' })}
+          aria-label="Status"
+          style={{ padding: '0.5rem 0.75rem' }}
         >
-          Prev
-        </button>
-      ) : null}
-      {page > 1 ? (
-        <span style={{ color: 'var(--color-ink-muted)', alignSelf: 'center' }}>
-          Page {page}
-        </span>
-      ) : null}
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={`${sortBy}:${sortOrder}`}
+          onChange={(event) => {
+            const [field, direction] = event.target.value.split(':');
+            setParam('sortBy', field, { sortOrder: direction, page: '' });
+          }}
+          aria-label="Sort"
+          style={{ padding: '0.5rem 0.75rem' }}
+        >
+          <option value="createdAt:desc">Created ↓</option>
+          <option value="createdAt:asc">Created ↑</option>
+          <option value="orderNumber:desc">Number ↓</option>
+          <option value="orderNumber:asc">Number ↑</option>
+        </select>
+      </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        basePath="/orders"
+        noun="order"
+      />
     </div>
   );
 }

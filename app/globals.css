@@ -1,61 +1,92 @@
 @import "tailwindcss";
 
-/* StockFlow design tokens.
-   Swap these variables for your brand palette (dataviz skill → references/palette.md)
-   when moving from placeholder to production chrome. */
+/* StockFlow design tokens — The Ledger Rail (Operate mode).
+   Monochrome slate ground, indigo action accent, state colors for data.
+   Swap these for your brand palette when moving to production chrome. */
 :root {
-  /* Brand chrome */
-  --color-bg: #ffffff;
-  --color-bg-soft: #f5f7fb;
-  --color-surface: #ffffff;
-  --color-border: #e5e9f0;
-  --color-ink: #1c2333;
-  --color-ink-muted: #5b6577;
+  /* Brand chrome — dark ledger */
+  --color-bg: #09090b;
+  --color-bg-soft: #18181b;
+  --color-surface: #18181b;
+  --color-surface-2: #27272a;
+  --color-border: #3f3f46;
+  --color-ink: #fafafa;
+  --color-ink-muted: #a1a1aa;
   --color-primary: #4f46e5;
-  --color-primary-soft: #eef1fe;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fdecec;
+  --color-primary-soft: #3730a3;
+  --color-danger: #f87171;
+  --color-danger-soft: #450a0a;
 
-  /* Status */
-  --color-status-pending: #b45309;
-  --color-status-pending-bg: #fef3c7;
-  --color-status-confirmed: #1d4ed8;
-  --color-status-confirmed-bg: #dbeafe;
-  --color-status-shipped: #15803d;
-  --color-status-shipped-bg: #dcfce7;
-  --color-status-cancelled: #b91c1c;
-  --color-status-cancelled-bg: #fee2e2;
+  /* Status — text tokens tuned for 4.5:1 on their tints at 11px badge size. */
+  --color-status-pending: #fbbf24;
+  --color-status-pending-bg: rgba(245, 158, 11, 0.15);
+  --color-status-confirmed: #818cf8;
+  --color-status-confirmed-bg: rgba(79, 70, 229, 0.15);
+  --color-status-shipped: #34d399;
+  --color-status-shipped-bg: rgba(16, 185, 129, 0.15);
+  --color-status-cancelled: #f87171;
+  --color-status-cancelled-bg: rgba(239, 68, 68, 0.15);
 
-  --radius-card: 12px;
-  --sidebar-width: 240px;
+  --radius-card: 8px;
+  --radius-input: 6px;
+  --sidebar-width: 256px;
+  --space: 8px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-bg: #0f1420;
-    --color-bg-soft: #151c2c;
-    --color-surface: #1a2234;
-    --color-border: #2a3550;
-    --color-ink: #e6ebf5;
-    --color-ink-muted: #9aa5bd;
-    --color-primary: #818cf8;
-    --color-primary-soft: #1e2650;
-    --color-danger: #f87171;
-    --color-danger-soft: #3a1520;
+/* Light mode override — available but the ledger is dark-first.
+   The use scene: an operator at a desktop in a mixed-lit office.
+   Dark ground reduces glare and keeps data figures crisp. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-bg: #fafafa;
+    --color-bg-soft: #f4f4f5;
+    --color-surface: #ffffff;
+    --color-surface-2: #f4f4f5;
+    --color-border: #e4e4e7;
+    --color-ink: #09090b;
+    --color-ink-muted: #71717a;
+    --color-primary: #4f46e5;
+    --color-primary-soft: #eef2ff;
+    --color-danger: #dc2626;
+    --color-danger-soft: #fee2e2;
+
+    --color-status-pending: #b45309;
+    --color-status-pending-bg: #fef3c7;
+    --color-status-confirmed: #4338ca;
+    --color-status-confirmed-bg: #e0e7ff;
+    --color-status-shipped: #047857;
+    --color-status-shipped-bg: #d1fae5;
+    --color-status-cancelled: #b91c1c;
+    --color-status-cancelled-bg: #fee2e2;
   }
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #0f1420;
-  --color-bg-soft: #151c2c;
-  --color-surface: #1a2234;
-  --color-border: #2a3550;
-  --color-ink: #e6ebf5;
-  --color-ink-muted: #9aa5bd;
-  --color-primary: #818cf8;
-  --color-primary-soft: #1e2650;
-  --color-danger: #f87171;
-  --color-danger-soft: #3a1520;
+  --color-bg: #09090b;
+  --color-bg-soft: #18181b;
+  --color-surface: #18181b;
+  --color-surface-2: #27272a;
+  --color-border: #3f3f46;
+  --color-ink: #fafafa;
+  --color-ink-muted: #a1a1aa;
+  --color-primary: #4f46e5;
+  --color-primary-soft: #3730a3;
+  --color-danger: #ef4444;
+  --color-danger-soft: #450a0a;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #fafafa;
+  --color-bg-soft: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f4f5;
+  --color-border: #e4e4e7;
+  --color-ink: #09090b;
+  --color-ink-muted: #71717a;
+  --color-primary: #4f46e5;
+  --color-primary-soft: #eef2ff;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fee2e2;
 }
 
 body {
@@ -64,15 +95,51 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
 
-/* Component classes used across the admin shell. These are thin wrappers
-   over Tailwind's utilities so pages read as readable JSX, not a class soup. */
+/* Browser surfaces — themed from the palette, not browser defaults */
+::selection {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+input,
+select,
+textarea {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+input::-webkit-scrollbar,
+select::-webkit-scrollbar,
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+/* Tabular figures for all numeric data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Component classes — thin wrappers over Tailwind utilities */
 .card {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding: 1rem;
+  padding: 16px;
+}
+
+.card-flat {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
 }
 
 .btn {
@@ -80,15 +147,16 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.875rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-surface);
+  border-radius: var(--radius-input);
+  background-color: var(--color-surface-2);
   color: var(--color-ink);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
 }
 
 .btn:hover {
@@ -98,6 +166,11 @@ body {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .btn-primary {
@@ -111,13 +184,32 @@ body {
 }
 
 .btn-danger {
-  background-color: var(--color-danger);
-  border-color: var(--color-danger);
+  background-color: #b91c1c;
+  border-color: #b91c1c;
   color: #ffffff;
 }
 
 .btn-danger:hover {
-  background-color: color-mix(in srgb, var(--color-danger) 85%, black 15%);
+  background-color: #991b1b;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-ink-muted);
+}
+
+.btn-ghost:hover {
+  background-color: var(--color-surface-2);
+  color: var(--color-ink);
+}
+
+/* Compact button used inside table rows / dense toolbars.
+   Stays small on desktop; the mobile media query enlarges it to a
+   comfortable 40px touch target via `.table .btn` and `.btn-compact`. */
+.btn-compact {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
 }
 
 .field {
@@ -128,7 +220,7 @@ body {
 }
 
 .field label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-ink-muted);
 }
@@ -138,8 +230,8 @@ body {
 .field textarea {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-surface);
+  border-radius: var(--radius-input);
+  background-color: var(--color-bg);
   color: var(--color-ink);
   font-size: 0.875rem;
 }
@@ -151,6 +243,17 @@ body {
   outline-offset: 1px;
 }
 
+/* Bare inputs/selects outside .field (filter toolbars, table inputs) */
+input[type="search"],
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+select,
+textarea {
+  font-family: inherit;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -160,9 +263,9 @@ body {
 .table thead th {
   text-align: left;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-ink-muted);
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--color-border);
@@ -174,12 +277,37 @@ body {
   vertical-align: middle;
 }
 
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-surface-2);
+}
+
+/* Low-stock signature move — a small amber status dot next to the figure,
+   not a side stripe (which the design hook flags as a "side-tab"). */
+.low-stock-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-status-pending);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: 0.25rem;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -211,8 +339,13 @@ body {
 }
 
 .badge-inactive {
-  background-color: var(--color-bg-soft);
+  background-color: var(--color-surface-2);
   color: var(--color-ink-muted);
+}
+
+.badge-low {
+  background-color: var(--color-status-pending-bg);
+  color: var(--color-status-pending);
 }
 
 /* Admin shell layout */
@@ -221,83 +354,329 @@ body {
   min-height: 100vh;
 }
 
+/* Mobile top bar — hidden on desktop, shown under 900px.
+   Holds the hamburger that opens the off-canvas sidebar. */
+.mobile-bar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.mobile-bar-brand svg {
+  border-radius: 6px;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
   background-color: var(--color-surface);
   border-right: 1px solid var(--color-border);
-  padding: 1rem;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 4px;
   position: sticky;
   top: 0;
   height: 100vh;
 }
 
+/* Responsive: off-canvas sidebar + collapsed grids under 900px */
+@media (max-width: 899px) {
+  .mobile-bar {
+    display: flex;
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: 280px;
+    min-width: 0;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop.visible {
+    display: block;
+  }
+
+  .main {
+    padding: 16px;
+    padding-top: 0;
+  }
+
+  /* Page header: title + actions stack */
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header .btn,
+  .page-header .btn-primary {
+    width: 100%;
+  }
+
+  /* Collapse 2-column detail grids to 1 column */
+  .detail-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Form rows: stack the fixed 3-column create-order row */
+  .order-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* KPI grid: 2-up instead of 4-up */
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Touch targets: enlarge compact table/pagination buttons to >= 44px */
+  .btn {
+    min-height: 40px;
+  }
+
+  .table .btn,
+  .btn-compact {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  .filter-bar select,
+  .filter-bar input {
+    min-height: 40px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .pagination .controls {
+    justify-content: space-between;
+  }
+
+  .pagination .btn-ghost {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+  tbody tr,
+  .btn {
+    transition: none;
+  }
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.sidebar-brand-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
 .sidebar a {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
   color: var(--color-ink-muted);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sidebar a svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .sidebar a:hover {
-  background-color: var(--color-bg-soft);
+  background-color: var(--color-surface-2);
   color: var(--color-ink);
 }
 
 .sidebar a.active {
   background-color: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-ink);
 }
 
 .sidebar .sidebar-footer {
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: 20px;
   border-top: 1px solid var(--color-border);
   font-size: 0.75rem;
   color: var(--color-ink-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .main {
   flex: 1;
-  padding: 1.5rem;
+  padding: 24px;
   overflow: auto;
+  min-width: 0;
 }
 
+/* Top command bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.topbar-search {
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  padding: 6px 12px;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
+.topbar-search svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 16px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* KPI / summary cards */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .summary-card {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 4px;
+  padding: 16px;
 }
 
 .summary-card .label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-ink-muted);
+  font-weight: 600;
 }
 
 .summary-card .value {
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-card .delta {
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
 }
 
 .form-error {
   background-color: var(--color-danger-soft);
   color: var(--color-danger);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  border-radius: var(--radius-input);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   margin-bottom: 1rem;
@@ -306,8 +685,107 @@ body {
 .form-success {
   background-color: var(--color-status-shipped-bg);
   color: var(--color-status-shipped);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-status-shipped) 30%, transparent);
+  border-radius: var(--radius-input);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   margin-bottom: 1rem;
+}
+
+/* Filter toolbar */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-bar input,
+.filter-bar select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  min-width: 0;
+}
+
+.filter-bar input:focus,
+.filter-bar select:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--color-ink-muted);
+}
+
+.empty-state svg {
+  width: 40px;
+  height: 40px;
+  opacity: 0.4;
+}
+
+.empty-state .title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.empty-state .subtitle {
+  font-size: 0.875rem;
+  max-width: 320px;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+}
+
+.pagination .controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Section heading inside a card */
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--color-ink);
+}
+
+/* Detail grid (dl) */
+.detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.detail-grid dt {
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
+.detail-grid dd {
+  margin: 0;
+  font-size: 0.875rem;
 }

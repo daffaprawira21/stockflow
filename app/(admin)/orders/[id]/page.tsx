@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrderActions } from './order-actions';
 import { DateDisplay } from '@/components/DateDisplay';
+import { Badge, type BadgeStatus } from '@/components/ui/Badge';
+import { XIcon } from '@/components/ui/Icons';
 
 type OrderItem = {
   productId: string;
@@ -28,11 +30,11 @@ type OrderDetail = {
   createdAt: string;
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'badge-pending',
-  CONFIRMED: 'badge-confirmed',
-  SHIPPED: 'badge-shipped',
-  CANCELLED: 'badge-cancelled',
+const STATUS_META: Record<string, { status: BadgeStatus }> = {
+  PENDING: { status: 'pending' },
+  CONFIRMED: { status: 'confirmed' },
+  SHIPPED: { status: 'shipped' },
+  CANCELLED: { status: 'cancelled' },
 };
 
 export default async function OrderPage({
@@ -105,88 +107,121 @@ export default async function OrderPage({
       minimumFractionDigits: 2,
     }).format(Number(value));
 
+  const statusMeta = STATUS_META[order.status] ?? {
+    status: 'inactive' as BadgeStatus,
+  };
+
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-            {order.orderNumber}
-          </h1>
-          <Link href="/orders" className="btn">
-            Back to orders
-          </Link>
+      <div className="page-header">
+        <h1 className="page-title">{order.orderNumber}</h1>
+        <Link href="/orders" className="btn btn-ghost">
+          <XIcon style={{ width: 14, height: 14 }} />
+          Back to orders
+        </Link>
+      </div>
+
+      <div
+        className="detail-grid-2col"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 16,
+          alignItems: 'start',
+        }}
+      >
+        {/* Left: items + history */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <div className="card card-flat">
+            <h2 className="section-title">Items</h2>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>Qty</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>Unit price</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr key={item.productId}>
+                      <td>{productRefs.get(item.productId) ?? item.productId}</td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {item.quantity}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {formatMoney(item.unitPrice)}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {formatMoney(item.subtotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="card card-flat">
+            <h2 className="section-title">Status history</h2>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">From</th>
+                    <th scope="col">To</th>
+                    <th scope="col">Reason</th>
+                    <th scope="col">At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.statusHistory.map((entry, index) => {
+                    const toMeta = STATUS_META[entry.toStatus] ?? {
+                      status: 'inactive' as BadgeStatus,
+                    };
+                    return (
+                      <tr key={index}>
+                        <td>{entry.fromStatus}</td>
+                        <td>
+                          <Badge status={toMeta.status}>{entry.toStatus}</Badge>
+                        </td>
+                        <td>{entry.reason ?? '—'}</td>
+                        <td><DateDisplay value={entry.createdAt} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Status</dt>
-          <dd>
-            <span className={`badge ${STATUS_BADGE[order.status] ?? ''}`}>{order.status}</span>
-          </dd>
+        {/* Right: summary + actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <div className="card card-flat">
+            <h2 className="section-title">Summary</h2>
+            <dl className="detail-grid">
+              <dt>Status</dt>
+              <dd>
+                <Badge status={statusMeta.status}>{order.status}</Badge>
+              </dd>
 
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Total</dt>
-          <dd>{formatMoney(order.totalAmount)}</dd>
+              <dt>Total</dt>
+              <dd className="tabular-nums" style={{ fontWeight: 700, fontSize: '1.25rem' }}>
+                {formatMoney(order.totalAmount)}
+              </dd>
 
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Created</dt>
-          <dd><DateDisplay value={order.createdAt} /></dd>
-        </dl>
-      </div>
+              <dt>Created</dt>
+              <dd><DateDisplay value={order.createdAt} /></dd>
+            </dl>
+          </div>
 
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginTop: 0 }}>Items</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Unit price</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items.map((item) => (
-              <tr key={item.productId}>
-                <td>{productRefs.get(item.productId) ?? item.productId}</td>
-                <td>{item.quantity}</td>
-                <td>{formatMoney(item.unitPrice)}</td>
-                <td>{formatMoney(item.subtotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginTop: 0 }}>Status history</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>From</th>
-              <th>To</th>
-              <th>Reason</th>
-              <th>At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.statusHistory.map((entry, index) => (
-              <tr key={index}>
-                <td>{entry.fromStatus}</td>
-                <td>
-                  <span className={`badge ${STATUS_BADGE[entry.toStatus] ?? ''}`}>
-                    {entry.toStatus}
-                  </span>
-                </td>
-                <td>{entry.reason ?? '—'}</td>
-                <td><DateDisplay value={entry.createdAt} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="card">
-        <OrderActions id={order.id} status={order.status} />
+          <div className="card card-flat">
+            <OrderActions id={order.id} status={order.status} />
+          </div>
+        </div>
       </div>
     </div>
   );
