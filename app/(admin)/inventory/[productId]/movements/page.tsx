@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { MovementsFilters } from './movements-filters';
 import { DateDisplay } from '@/components/DateDisplay';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { XIcon } from '@/components/ui/Icons';
 
 type Movement = {
   id: string;
@@ -54,15 +56,14 @@ export default async function StockMovementsPage({
   if (res.status === 400 || res.status === 422) {
     return (
       <div>
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Stock movements</h1>
-            <Link href="/inventory" className="btn">
-              Back to inventory
-            </Link>
-          </div>
+        <div className="page-header">
+          <h1 className="page-title">Stock movements</h1>
+          <Link href="/inventory" className="btn btn-ghost">
+            <XIcon style={{ width: 14, height: 14 }} />
+            Back to inventory
+          </Link>
         </div>
-        <div className="card">
+        <div className="card card-flat">
           <p style={{ color: 'var(--color-ink-muted)' }}>
             The filter query is invalid. Clear the movement-type filter and try again.
           </p>
@@ -87,54 +88,74 @@ export default async function StockMovementsPage({
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Stock movements</h1>
-          <Link href="/inventory" className="btn">
-            Back to inventory
-          </Link>
-        </div>
+      <div className="page-header">
+        <h1 className="page-title">Stock movements</h1>
+        <Link href="/inventory" className="btn btn-ghost">
+          <XIcon style={{ width: 14, height: 14 }} />
+          Back to inventory
+        </Link>
       </div>
 
-      <div className="card">
-        <MovementsFilters movementType={movementType ?? ''} page={page} />
-      </div>
+      <div className="card card-flat">
+        <MovementsFilters
+          movementType={movementType ?? ''}
+          page={page}
+          totalPages={body.meta.totalPages}
+          totalItems={body.meta.totalItems}
+        />
 
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Delta</th>
-              <th>Before</th>
-              <th>After</th>
-              <th>Reason</th>
-              <th>Order</th>
-            </tr>
-          </thead>
-          <tbody>
-            {body.data.map((movement) => (
-              <tr key={movement.id}>
-                <td><DateDisplay value={movement.createdAt} /></td>
-                <td>{movement.movementType}</td>
-                <td style={{ color: movement.quantityDelta > 0 ? 'var(--color-status-shipped)' : 'var(--color-danger)' }}>
-                  {movement.quantityDelta > 0 ? `+${movement.quantityDelta}` : movement.quantityDelta}
-                </td>
-                <td>{movement.quantityBefore}</td>
-                <td>{movement.quantityAfter}</td>
-                <td>{movement.reason ?? '—'}</td>
-                <td>{movement.orderId ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {body.meta.totalItems > 0 ? (
-          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>
-            {body.meta.totalItems} movement{body.meta.totalItems === 1 ? '' : 's'}
-          </p>
+        {body.data.length === 0 ? (
+          <EmptyState
+            title="No stock movements found."
+            subtitle="Movements appear here as orders are confirmed, cancelled, or adjusted."
+          />
         ) : (
-          <p style={{ color: 'var(--color-ink-muted)' }}>No stock movements found.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Delta</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Before</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>After</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Order</th>
+                </tr>
+              </thead>
+              <tbody>
+                {body.data.map((movement) => {
+                  const positive = movement.quantityDelta > 0;
+                  return (
+                    <tr key={movement.id}>
+                      <td><DateDisplay value={movement.createdAt} /></td>
+                      <td className="tabular-nums">{movement.movementType}</td>
+                      <td
+                        className="tabular-nums"
+                        style={{
+                          textAlign: 'right',
+                          fontWeight: 600,
+                          color: positive
+                            ? 'var(--color-status-shipped)'
+                            : 'var(--color-status-cancelled)',
+                        }}
+                      >
+                        {positive ? `+${movement.quantityDelta}` : movement.quantityDelta}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {movement.quantityBefore}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {movement.quantityAfter}
+                      </td>
+                      <td>{movement.reason ?? '—'}</td>
+                      <td className="tabular-nums">{movement.orderId ?? '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
   switch (body?.error?.code) {
@@ -68,18 +69,30 @@ export function OrderActions({ id, status }: OrderActionsProps) {
 
   return (
     <div>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginTop: 0 }}>Actions</h2>
+      <h2 className="section-title">Actions</h2>
 
-      {error ? <div className="form-error">{error}</div> : null}
+      {error ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{error}</span>
+        </div>
+      ) : null}
 
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           type="button"
           className="btn btn-primary"
           disabled={!canConfirm || pending}
           onClick={() => void post('/confirm')}
         >
-          Confirm
+          {pending ? (
+            <>
+              <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+              Confirming…
+            </>
+          ) : (
+            'Confirm'
+          )}
         </button>
 
         {canShip ? (
@@ -89,13 +102,20 @@ export function OrderActions({ id, status }: OrderActionsProps) {
             disabled={pending}
             onClick={() => void post('/ship')}
           >
-            Ship
+            {pending ? (
+              <>
+                <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+                Shipping…
+              </>
+            ) : (
+              'Ship'
+            )}
           </button>
         ) : null}
       </div>
 
       {canCancel ? (
-        <form onSubmit={handleCancel} style={{ marginTop: '1rem', maxWidth: '28rem' }}>
+        <form onSubmit={handleCancel} style={{ marginTop: 24 }}>
           <div className="field">
             <label htmlFor={`${inputId}-cancel-reason`}>Cancel order</label>
             <textarea
@@ -112,7 +132,14 @@ export function OrderActions({ id, status }: OrderActionsProps) {
             className="btn btn-danger"
             disabled={pending || cancelReason.trim() === ''}
           >
-            {pending ? 'Cancelling…' : 'Cancel order'}
+            {pending ? (
+              <>
+                <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+                Cancelling…
+              </>
+            ) : (
+              'Cancel order'
+            )}
           </button>
         </form>
       ) : null}

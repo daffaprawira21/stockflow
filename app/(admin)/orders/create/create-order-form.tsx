@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { AlertIcon, PlusIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 type Product = {
   productId: string;
@@ -35,6 +36,7 @@ export function CreateOrderForm() {
   const router = useRouter();
   const id = useId();
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([{ productId: '', quantity: '' }]);
   const [pending, setPending] = useState(false);
@@ -42,8 +44,9 @@ export function CreateOrderForm() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   function loadProducts() {
-    if (products) return;
+    if (products || productsLoading) return;
 
+    setProductsLoading(true);
     fetch('/api/inventory?limit=100', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) {
@@ -57,6 +60,9 @@ export function CreateOrderForm() {
       })
       .catch(() => {
         setProductsError('Could not load products. Please try again.');
+      })
+      .finally(() => {
+        setProductsLoading(false);
       });
   }
 
@@ -138,20 +144,39 @@ export function CreateOrderForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {validationError ? <div className="form-error">{validationError}</div> : null}
-      {error ? <div className="form-error">{error}</div> : null}
+      {validationError ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{validationError}</span>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{error}</span>
+        </div>
+      ) : null}
 
-      {productsError ? <div className="form-error">{productsError}</div> : null}
+      {productsError ? (
+        <div className="form-error">{productsError}</div>
+      ) : null}
 
       <div>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>Items</h2>
+        <h2 className="section-title">Items</h2>
 
         {rows.map((row, index) => (
           <div
             key={index}
-            style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}
+            className="order-row"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 120px auto',
+              gap: 12,
+              marginBottom: 12,
+              alignItems: 'end',
+            }}
           >
-            <div className="field" style={{ flex: '2 1 14rem', marginBottom: 0 }}>
+            <div className="field" style={{ marginBottom: 0 }}>
               <label htmlFor={`${id}-product-${index}`}>Product</label>
               <select
                 id={`${id}-product-${index}`}
@@ -161,7 +186,9 @@ export function CreateOrderForm() {
                 onFocus={loadProducts}
                 required
               >
-                <option value="">Select a product…</option>
+                <option value="" disabled>
+                  {productsLoading ? 'Loading products…' : 'Select a product…'}
+                </option>
                 {(products ?? []).map((product) => (
                   <option key={product.productId} value={product.productId}>
                     {product.sku} — {product.productName} (stock {product.stock}
@@ -170,7 +197,7 @@ export function CreateOrderForm() {
                 ))}
               </select>
             </div>
-            <div className="field" style={{ flex: '0 0 8rem', marginBottom: 0 }}>
+            <div className="field" style={{ marginBottom: 0 }}>
               <label htmlFor={`${id}-quantity-${index}`}>Quantity</label>
               <input
                 id={`${id}-quantity-${index}`}
@@ -180,15 +207,17 @@ export function CreateOrderForm() {
                 value={row.quantity}
                 onChange={(event) => updateRow(index, { quantity: event.target.value })}
                 required
+                style={{ fontVariantNumeric: 'tabular-nums' }}
               />
             </div>
             {rows.length > 1 ? (
               <button
                 type="button"
-                className="btn"
+                className="btn btn-ghost btn-compact"
                 onClick={() => removeRow(index)}
-                style={{ alignSelf: 'flex-end' }}
+                aria-label="Remove item"
               >
+                <XIcon style={{ width: 14, height: 14 }} />
                 Remove
               </button>
             ) : null}
@@ -196,15 +225,24 @@ export function CreateOrderForm() {
         ))}
 
         <button type="button" className="btn" onClick={addRow}>
+          <PlusIcon style={{ width: 14, height: 14 }} />
           Add item
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? 'Creating…' : 'Create order'}
+          {pending ? (
+            <>
+              <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+              Creating…
+            </>
+          ) : (
+            'Create order'
+          )}
         </button>
         <Link href="/orders" className="btn">
+          <XIcon style={{ width: 14, height: 14 }} />
           Cancel
         </Link>
       </div>

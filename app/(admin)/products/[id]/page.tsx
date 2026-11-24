@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductDetail } from './product-detail';
 import { DateDisplay } from '@/components/DateDisplay';
+import { Badge, type BadgeStatus } from '@/components/ui/Badge';
+import { XIcon } from '@/components/ui/Icons';
 
 type ProductDetail = {
   id: string;
@@ -50,6 +52,8 @@ export default async function ProductPage({
     notFound();
   }
 
+  const product = body.data;
+
   const formatMoney = (value: string) =>
     new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -57,50 +61,58 @@ export default async function ProductPage({
       minimumFractionDigits: 2,
     }).format(Number(value));
 
+  const status: BadgeStatus = product.isActive ? 'active' : 'inactive';
+
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>{body.data.name}</h1>
-          <Link href="/products" className="btn">
-            Back to products
-          </Link>
+      <div className="page-header">
+        <h1 className="page-title">{product.name}</h1>
+        <Link href="/products" className="btn btn-ghost">
+          <XIcon style={{ width: 14, height: 14 }} />
+          Back to products
+        </Link>
+      </div>
+
+      <div
+        className="detail-grid-2col"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}
+      >
+        <div className="card card-flat">
+          <h2 className="section-title">Details</h2>
+          <dl className="detail-grid">
+            <dt>SKU</dt>
+            <dd className="tabular-nums">{product.sku}</dd>
+
+            <dt>Description</dt>
+            <dd>{product.description ?? '—'}</dd>
+
+            <dt>Price</dt>
+            <dd className="tabular-nums">{formatMoney(product.price)}</dd>
+
+            <dt>Stock</dt>
+            <dd className="tabular-nums">
+              {product.stock}
+              {product.stock <= 5 ? (
+                <Badge status="low">Low</Badge>
+              ) : null}
+            </dd>
+
+            <dt>Status</dt>
+            <dd>
+              <Badge status={status}>{product.isActive ? 'Active' : 'Inactive'}</Badge>
+            </dd>
+
+            <dt>Created</dt>
+            <dd><DateDisplay value={product.createdAt} /></dd>
+
+            <dt>Updated</dt>
+            <dd><DateDisplay value={product.updatedAt} /></dd>
+          </dl>
         </div>
-      </div>
 
-      <div className="card">
-        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>SKU</dt>
-          <dd>{body.data.sku}</dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Description</dt>
-          <dd>{body.data.description ?? '—'}</dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Price</dt>
-          <dd>{formatMoney(body.data.price)}</dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Stock</dt>
-          <dd>{body.data.stock}</dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Status</dt>
-          <dd>
-            <span
-              className={`badge ${body.data.isActive ? 'badge-active' : 'badge-inactive'}`}
-            >
-              {body.data.isActive ? 'Active' : 'Inactive'}
-            </span>
-          </dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Created</dt>
-          <dd><DateDisplay value={body.data.createdAt} /></dd>
-
-          <dt style={{ fontWeight: 600, color: 'var(--color-ink-muted)' }}>Updated</dt>
-          <dd><DateDisplay value={body.data.updatedAt} /></dd>
-        </dl>
-      </div>
-
-      <div className="card">
-        <ProductDetail id={body.data.id} isActive={body.data.isActive} />
+        <div className="card card-flat">
+          <ProductDetail id={product.id} isActive={product.isActive} />
+        </div>
       </div>
     </div>
   );

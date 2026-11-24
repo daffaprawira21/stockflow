@@ -2,6 +2,9 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InventoryFilters } from './inventory-filters';
+import { Badge, type BadgeStatus } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ArrowUpIcon, PlusIcon } from '@/components/ui/Icons';
 
 type InventoryItem = {
   productId: string;
@@ -53,62 +56,90 @@ export default async function InventoryPage({
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Inventory</h1>
-          <Link href="/inventory/adjust" className="btn btn-primary">
-            Adjust stock
-          </Link>
-        </div>
+      <div className="page-header">
+        <h1 className="page-title">Inventory</h1>
+        <Link href="/inventory/adjust" className="btn btn-primary">
+          <ArrowUpIcon style={{ width: 14, height: 14 }} />
+          Adjust stock
+        </Link>
       </div>
 
-      <div className="card">
-        <InventoryFilters search={search} lowStock={lowStock ?? ''} page={page} />
-      </div>
+      <div className="card card-flat">
+        <InventoryFilters
+          search={search}
+          lowStock={lowStock ?? ''}
+          page={page}
+          totalPages={body.meta.totalPages}
+          totalItems={body.meta.totalItems}
+        />
 
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Movements</th>
-              <th>Adjust</th>
-            </tr>
-          </thead>
-          <tbody>
-            {body.data.map((item) => (
-              <tr key={item.productId}>
-                <td>{item.productName}</td>
-                <td>{item.sku}</td>
-                <td>{item.stock}</td>
-                <td>
-                  <span className={`badge ${item.isActive ? 'badge-active' : 'badge-inactive'}`}>
-                    {item.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>
-                  <Link href={`/inventory/${item.productId}/movements`} className="btn">
-                    History
-                  </Link>
-                </td>
-                <td>
-                  <Link href={`/inventory/adjust?product=${item.productId}`} className="btn">
-                    Adjust
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {body.meta.totalItems > 0 ? (
-          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>
-            {body.meta.totalItems} product{body.meta.totalItems === 1 ? '' : 's'}
-          </p>
+        {body.data.length === 0 ? (
+          <EmptyState
+            title="No inventory items found."
+            subtitle={
+              search
+                ? `Nothing matches “${search}”. Try a different search.`
+                : 'Items appear here once you create products.'
+            }
+            action={
+              <Link href="/products/create" className="btn btn-primary">
+                <PlusIcon style={{ width: 14, height: 14 }} />
+                Create product
+              </Link>
+            }
+          />
         ) : (
-          <p style={{ color: 'var(--color-ink-muted)' }}>No inventory items found.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col">SKU</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" style={{ width: 120 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {body.data.map((item) => {
+                  const status: BadgeStatus = item.isActive ? 'active' : 'inactive';
+                  const low = item.stock <= 5;
+                  return (
+                    <tr key={item.productId}>
+                      <td>{item.productName}</td>
+                      <td className="tabular-nums">{item.sku}</td>
+                      <td className="tabular-nums" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {low ? (
+                          <span className="low-stock-dot" title="Low stock" />
+                        ) : null}
+                        {item.stock}
+                      </td>
+                      <td>
+                        <Badge status={status}>{item.isActive ? 'Active' : 'Inactive'}</Badge>
+                        {low ? <Badge status="low">Low</Badge> : null}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <Link
+                            href={`/inventory/${item.productId}/movements`}
+                            className="btn btn-compact"
+                          >
+                            History
+                          </Link>
+                          <Link
+                            href={`/inventory/adjust?product=${item.productId}`}
+                            className="btn btn-compact"
+                          >
+                            Adjust
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

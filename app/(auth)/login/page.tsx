@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { Logo } from '@/components/ui/Logo';
+import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 type ErrorResponse = {
   error?: {
@@ -67,42 +69,86 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <h1>Sign in to StockFlow</h1>
-      <form onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </div>
-        {error ? (
-          <p role="alert" aria-live="polite">
-            {error}
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '24px',
+        backgroundColor: 'var(--color-bg)',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 380,
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-card)',
+          padding: 32,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+          <Logo style={{ width: 48, height: 48 }} />
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>
+            Sign in to StockFlow
+          </h1>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-ink-muted)', margin: 0 }}>
+            Admin inventory &amp; order management
           </p>
-        ) : null}
-        <button type="submit" disabled={pending}>
-          {pending ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+
+          {error ? (
+            <div className="form-error" role="alert" aria-live="polite" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={pending}
+            style={{ width: '100%', marginTop: 8 }}
+          >
+            {pending ? (
+              <>
+                <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              'Sign in'
+            )}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

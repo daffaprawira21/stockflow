@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
   if (body?.error?.code === 'RESOURCE_NOT_FOUND') {
@@ -99,9 +100,14 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
 
   return (
     <div>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginTop: 0 }}>Actions</h2>
+      <h2 className="section-title">Actions</h2>
 
-      {error ? <div className="form-error">{error}</div> : null}
+      {error ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{error}</span>
+        </div>
+      ) : null}
 
       {editMode ? (
         <form onSubmit={handleEdit} noValidate>
@@ -136,9 +142,16 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
               placeholder="New price"
             />
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: 12 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? (
+                <>
+                  <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                'Save changes'
+              )}
             </button>
             <button
               type="button"
@@ -156,7 +169,7 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
           </div>
         </form>
       ) : (
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button type="button" className="btn" onClick={() => setEditMode(true)}>
             Edit
           </button>
@@ -167,7 +180,14 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
               onClick={handleDeactivate}
               disabled={deactivating}
             >
-              {deactivating ? 'Deactivating…' : 'Deactivate'}
+              {deactivating ? (
+                <>
+                  <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+                  Deactivating…
+                </>
+              ) : (
+                'Deactivate'
+              )}
             </button>
           ) : null}
         </div>

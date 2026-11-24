@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, useEffect, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { AlertIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 type Product = {
   productId: string;
@@ -29,6 +30,7 @@ export function AdjustStockForm() {
   const searchParams = useSearchParams();
   const id = useId();
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [productId, setProductId] = useState(searchParams.get('product') ?? '');
   const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT'>('ADJUSTMENT_IN');
@@ -39,8 +41,9 @@ export function AdjustStockForm() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   function loadProducts() {
-    if (products) return;
+    if (products || productsLoading) return;
 
+    setProductsLoading(true);
     fetch('/api/inventory?limit=100', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) {
@@ -54,8 +57,21 @@ export function AdjustStockForm() {
       })
       .catch(() => {
         setProductsError('Could not load products. Please try again.');
+      })
+      .finally(() => {
+        setProductsLoading(false);
       });
   }
+
+  // Auto-load when the page opened with a ?product= param. Deferred one tick
+  // so no setState runs synchronously in the effect body (lint: cascading
+  // renders). `loadProducts` guards against duplicate fetches.
+  useEffect(() => {
+    if (!productId) return;
+    const id = requestAnimationFrame(() => loadProducts());
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
 
   function validate(): string | null {
     if (!productId) {
@@ -77,9 +93,9 @@ export function AdjustStockForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const validationError = validate();
-    if (validationError) {
-      setValidationError(validationError);
+    const error = validate();
+    if (error) {
+      setValidationError(error);
       return;
     }
 
@@ -116,8 +132,18 @@ export function AdjustStockForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {validationError ? <div className="form-error">{validationError}</div> : null}
-      {submitError ? <div className="form-error">{submitError}</div> : null}
+      {validationError ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{validationError}</span>
+        </div>
+      ) : null}
+      {submitError ? (
+        <div className="form-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
+          <span>{submitError}</span>
+        </div>
+      ) : null}
 
       <div className="field">
         <label htmlFor={`${id}-productId`}>Product</label>
@@ -129,7 +155,9 @@ export function AdjustStockForm() {
           onFocus={loadProducts}
           required
         >
-          <option value="">Select a product…</option>
+          <option value="" disabled>
+            {productsLoading ? 'Loading products…' : products ? 'Select a product…' : 'Select a product…'}
+          </option>
           {(products ?? []).map((product) => (
             <option key={product.productId} value={product.productId}>
               {product.sku} — {product.productName} (stock {product.stock}
@@ -137,32 +165,40 @@ export function AdjustStockForm() {
             </option>
           ))}
         </select>
-        {productsError ? <div className="form-error">{productsError}</div> : null}
+        {productsError ? (
+          <div className="form-error">{productsError}</div>
+        ) : null}
       </div>
 
-      <div className="field">
-        <label htmlFor={`${id}-type`}>Adjustment type</label>
-        <select
-          id={`${id}-type`}
-          value={type}
-          onChange={(event) => setType(event.target.value as 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT')}
-        >
-          <option value="ADJUSTMENT_IN">Increase stock (ADJUSTMENT_IN)</option>
-          <option value="ADJUSTMENT_OUT">Decrease stock (ADJUSTMENT_OUT)</option>
-        </select>
-      </div>
+      <div className="order-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="field">
+          <label htmlFor={`${id}-type`}>Adjustment type</label>
+          <select
+            id={`${id}-type`}
+            value={type}
+            onChange={(event) =>
+              setType(event.target.value as 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT')
+            }
+          >
+            <option value="ADJUSTMENT_IN">Increase stock (ADJUSTMENT_IN)</option>
+            <option value="ADJUSTMENT_OUT">Decrease stock (ADJUSTMENT_OUT)</option>
+          </select>
+        </div>
 
-      <div className="field">
-        <label htmlFor={`${id}-quantity`}>Quantity</label>
-        <input
-          id={`${id}-quantity`}
-          type="number"
-          min="1"
-          step="1"
-          value={quantity}
-          onChange={(event) => setQuantity(event.target.value)}
-          required
-        />
+        <div className="field">
+          <label htmlFor={`${id}-quantity`}>Quantity</label>
+          <input
+            id={`${id}-quantity`}
+            type="number"
+            min="1"
+            step="1"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+            required
+            placeholder="0"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          />
+        </div>
       </div>
 
       <div className="field">
@@ -177,11 +213,19 @@ export function AdjustStockForm() {
         />
       </div>
 
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? 'Adjusting…' : 'Adjust stock'}
+          {pending ? (
+            <>
+              <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />
+              Adjusting…
+            </>
+          ) : (
+            'Adjust stock'
+          )}
         </button>
         <Link href="/inventory" className="btn">
+          <XIcon style={{ width: 14, height: 14 }} />
           Cancel
         </Link>
       </div>

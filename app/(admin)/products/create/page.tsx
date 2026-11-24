@@ -1,12 +1,18 @@
+import Link from 'next/link';
 import { CreateProductForm } from './create-product-form';
+import { XIcon } from '@/components/ui/Icons';
 
 export default function CreateProductPage() {
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Create product</h1>
+      <div className="page-header">
+        <h1 className="page-title">Create product</h1>
+        <Link href="/products" className="btn btn-ghost">
+          <XIcon style={{ width: 14, height: 14 }} />
+          Back to products
+        </Link>
       </div>
-      <div className="card">
+      <div className="card card-flat" style={{ maxWidth: 640 }}>
         <CreateProductForm />
       </div>
     </div>

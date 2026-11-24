@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductsFilters } from './products-filters';
 import { DateDisplay } from '@/components/DateDisplay';
+import { Badge, type BadgeStatus } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PlusIcon } from '@/components/ui/Icons';
 
 type Product = {
   id: string;
@@ -69,68 +72,84 @@ export default async function ProductsPage({
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Products</h1>
-          <Link href="/products/create" className="btn btn-primary">
-            Create product
-          </Link>
-        </div>
+      <div className="page-header">
+        <h1 className="page-title">Products</h1>
+        <Link href="/products/create" className="btn btn-primary">
+          <PlusIcon style={{ width: 14, height: 14 }} />
+          Create product
+        </Link>
       </div>
 
-      <div className="card">
+      <div className="card card-flat">
         <ProductsFilters
           search={search}
           isActive={isActive ?? ''}
           sortBy={sortBy}
           sortOrder={sortOrder}
           page={page}
+          totalPages={body.meta.totalPages}
+          totalItems={body.meta.totalItems}
         />
-      </div>
 
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Name</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Updated</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {body.data.map((product) => (
-              <tr key={product.id}>
-                <td>{product.sku}</td>
-                <td>{product.name}</td>
-                <td>{formatMoney(product.price)}</td>
-                <td>{product.stock}</td>
-                <td>
-                  <span
-                    className={`badge ${product.isActive ? 'badge-active' : 'badge-inactive'}`}
-                  >
-                    {product.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td><DateDisplay value={product.updatedAt} /></td>
-                <td>
-                  <Link href={`/products/${product.id}`} className="btn">
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {body.meta.totalItems > 0 ? (
-          <p style={{ color: 'var(--color-ink-muted)', fontSize: '0.875rem' }}>
-            {body.meta.totalItems} product{body.meta.totalItems === 1 ? '' : 's'}
-          </p>
+        {body.data.length === 0 ? (
+          <EmptyState
+            title="No products found."
+            subtitle={
+              search
+                ? `Nothing matches “${search}”. Try a different search.`
+                : 'Create your first product to get started.'
+            }
+            action={
+              <Link href="/products/create" className="btn btn-primary">
+                Create product
+              </Link>
+            }
+          />
         ) : (
-          <p style={{ color: 'var(--color-ink-muted)' }}>No products found.</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">SKU</th>
+                  <th scope="col">Name</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Price</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Updated</th>
+                  <th scope="col" style={{ width: 64 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {body.data.map((product) => {
+                  const status: BadgeStatus = product.isActive ? 'active' : 'inactive';
+                  return (
+                    <tr key={product.id}>
+                      <td className="tabular-nums">{product.sku}</td>
+                      <td>{product.name}</td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {formatMoney(product.price)}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {product.stock <= 5 ? (
+                          <span className="low-stock-dot" title="Low stock" />
+                        ) : null}
+                        {product.stock}
+                      </td>
+                      <td>
+                        <Badge status={status}>{product.isActive ? 'Active' : 'Inactive'}</Badge>
+                      </td>
+                      <td><DateDisplay value={product.updatedAt} /></td>
+                      <td>
+                        <Link href={`/products/${product.id}`} className="btn btn-compact">
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -1,12 +1,18 @@
+import Link from 'next/link';
 import { CreateOrderForm } from './create-order-form';
+import { XIcon } from '@/components/ui/Icons';
 
 export default function CreateOrderPage() {
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Create order</h1>
+      <div className="page-header">
+        <h1 className="page-title">Create order</h1>
+        <Link href="/orders" className="btn btn-ghost">
+          <XIcon style={{ width: 14, height: 14 }} />
+          Back to orders
+        </Link>
       </div>
-      <div className="card">
+      <div className="card card-flat" style={{ maxWidth: 720 }}>
         <CreateOrderForm />
       </div>
     </div>
