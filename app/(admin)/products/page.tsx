@@ -108,6 +108,7 @@ export default async function ProductsPage({
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
+              <caption className="sr-only">Product catalog with SKU, name, price, stock, and status</caption>
               <thead>
                 <tr>
                   <th scope="col">SKU</th>

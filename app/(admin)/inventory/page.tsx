@@ -91,6 +91,7 @@ export default async function InventoryPage({
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
+              <caption className="sr-only">Inventory stock levels with SKU, quantity, and status</caption>
               <thead>
                 <tr>
                   <th scope="col">Product</th>

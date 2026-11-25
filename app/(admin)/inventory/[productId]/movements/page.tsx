@@ -112,6 +112,7 @@ export default async function StockMovementsPage({
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
+              <caption className="sr-only">Stock movement ledger with date, type, and quantity changes</caption>
               <thead>
                 <tr>
                   <th scope="col">Date</th>

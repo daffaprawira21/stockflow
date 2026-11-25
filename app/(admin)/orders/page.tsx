@@ -132,6 +132,7 @@ export default async function OrdersPage({
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
+              <caption className="sr-only">Customer orders with status, total, and creation date</caption>
               <thead>
                 <tr>
                   <th scope="col">Order</th>
