@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { LogoutButton } from './logout-button';
 import { ActiveNav } from './active-nav';
 import { Logo } from '@/components/ui/Logo';
+import { ThemeToggle } from './theme-toggle';
 
 type MobileShellProps = {
   userEmail: string;
@@ -76,6 +77,7 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
         <div className="mobile-bar-brand" aria-hidden>
           <Logo style={{ width: 28, height: 28 }} />
         </div>
+        <ThemeToggle />
       </div>
 
       <div className="shell">
@@ -93,7 +95,10 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
           <ActiveNav />
           <div className="sidebar-footer">
             <div>Signed in as {userEmail}</div>
-            <LogoutButton />
+            <div className="sidebar-footer-actions">
+              <ThemeToggle />
+              <LogoutButton />
+            </div>
           </div>
         </aside>
         <main className="main" id="main">

@@ -48,7 +48,7 @@ Cards and buttons: 6–8px radius, never pill. Badges: full pill (999px) with a 
 ## Components
 
 - **Button** — `btn` (secondary), `btn-primary` (single indigo action per view), `btn-danger`, `btn-ghost`. Loading state renders a 14px spinner in place of the leading icon.
-- **Badge** — pill + status dot; variants `pending/confirmed/shipped/cancelled/active/inactive/low`.
+- **Badge** — pill + status dot; seven `status` variants (pending, confirmed, shipped, cancelled, active, inactive, low), each a `badge-{status}` class in `app/globals.css` driven by the `BadgeStatus` union in `components/ui/Badge.tsx`.
 - **StatCard** — icon tile + uppercase label + tabular value; optional link.
 - **Pagination** — count label left, `Page X of Y` + prev/next ghost buttons right; full prev **and** next.
 - **SearchInput** — 300ms debounce, magnifier + clear.

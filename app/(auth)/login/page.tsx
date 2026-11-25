@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Logo } from '@/components/ui/Logo';
+import { ThemeToggle } from '@/app/(admin)/theme-toggle';
 import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 type ErrorResponse = {
@@ -82,12 +83,23 @@ export default function LoginPage() {
         style={{
           width: '100%',
           maxWidth: 380,
+          position: 'relative',
           backgroundColor: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-card)',
           padding: 32,
         }}
       >
+        <div
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+          }}
+        >
+          <ThemeToggle />
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 24 }}>
           <Logo style={{ width: 48, height: 48 }} />
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>
