@@ -31,6 +31,7 @@
   --radius-input: 6px;
   --sidebar-width: 256px;
   --space: 8px;
+  color-scheme: dark;
 }
 
 /* Light mode override — available but the ledger is dark-first.
@@ -38,6 +39,7 @@
    Dark ground reduces glare and keeps data figures crisp. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
+    color-scheme: light;
     --color-bg: #fafafa;
     --color-bg-soft: #f4f4f5;
     --color-surface: #ffffff;
@@ -62,6 +64,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --color-bg: #09090b;
   --color-bg-soft: #18181b;
   --color-surface: #18181b;
@@ -76,6 +79,7 @@
 }
 
 :root[data-theme="light"] {
+  color-scheme: light;
   --color-bg: #fafafa;
   --color-bg-soft: #f4f4f5;
   --color-surface: #ffffff;
@@ -348,6 +352,34 @@ textarea {
   color: var(--color-status-pending);
 }
 
+/* Theme toggle — icon-only control in the sidebar footer and mobile bar.
+   Carries the same 120ms transition as the other controls. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background-color: var(--color-surface-2);
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-bg-soft);
+  color: var(--color-ink);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
 /* Admin shell layout */
 .shell {
   display: flex;
@@ -391,6 +423,7 @@ textarea {
   letter-spacing: -0.02em;
   color: var(--color-ink);
   text-decoration: none;
+  flex: 1;
 }
 
 .mobile-bar-brand svg {
@@ -482,6 +515,13 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* The email row + the theme toggle sit above the full-width sign-out button */
+.sidebar-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .main {
@@ -766,6 +806,11 @@ textarea {
   }
 
   .pagination .btn-ghost {
+    min-height: 44px;
+  }
+
+  .theme-toggle {
+    min-width: 44px;
     min-height: 44px;
   }
 }
