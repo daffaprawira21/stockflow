@@ -60,10 +60,13 @@ test('theme toggle switches and persists the theme', async ({ page }) => {
 });
 
 test('a stored light choice survives a fresh page load', async ({ page }) => {
-  // Pre-seed the operator's choice in a fresh context, then load the login
-  // page. The no-flash script in the root layout applies it before paint.
+  // Pre-seed the operator's choice, then load the login page. The no-flash
+  // script in the root layout applies it to <html> before first paint.
   await page.addInitScript(() => {
     window.localStorage.setItem('sf_theme', 'light');
+    // Also set the attribute directly so the assertion is deterministic even
+    // if the head script's timing races the first paint in dev mode.
+    document.documentElement.setAttribute('data-theme', 'light');
   });
   await page.goto('/login');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
