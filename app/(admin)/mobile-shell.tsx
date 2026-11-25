@@ -45,6 +45,12 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
 
   return (
     <>
+      {/* Skip link: visually hidden until focused (keyboard / SR users),
+          jumps straight to the main content, bypassing the nav. */}
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+
       {/* Mobile top bar with hamburger — visible under 900px only */}
       <div className="mobile-bar">
         <button
@@ -90,7 +96,9 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
             <LogoutButton />
           </div>
         </aside>
-        <main className="main">{children}</main>
+        <main className="main" id="main">
+          {children}
+        </main>
       </div>
     </>
   );

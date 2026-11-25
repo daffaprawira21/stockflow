@@ -136,6 +136,7 @@ export default async function OrderPage({
             <h2 className="section-title">Items</h2>
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
+                <caption className="sr-only">Order line items with quantity, unit price, and subtotal</caption>
                 <thead>
                   <tr>
                     <th scope="col">Product</th>
@@ -168,6 +169,7 @@ export default async function OrderPage({
             <h2 className="section-title">Status history</h2>
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
+                <caption className="sr-only">Order status transition history</caption>
                 <thead>
                   <tr>
                     <th scope="col">From</th>
