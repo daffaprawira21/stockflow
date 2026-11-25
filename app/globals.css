@@ -419,106 +419,6 @@ textarea {
   height: 100vh;
 }
 
-/* Responsive: off-canvas sidebar + collapsed grids under 900px */
-@media (max-width: 899px) {
-  .mobile-bar {
-    display: flex;
-  }
-
-  .shell {
-    display: block;
-  }
-
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 50;
-    width: 280px;
-    min-width: 0;
-    transform: translateX(-100%);
-    transition: transform 200ms ease;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .sidebar-backdrop.visible {
-    display: block;
-  }
-
-  .main {
-    padding: 16px;
-    padding-top: 0;
-  }
-
-  /* Page header: title + actions stack */
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .page-header .btn,
-  .page-header .btn-primary {
-    width: 100%;
-  }
-
-  /* Collapse 2-column detail grids to 1 column */
-  .detail-grid-2col {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Form rows: stack the fixed 3-column create-order row */
-  .order-row {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* KPI grid: 2-up instead of 4-up */
-  .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* Touch targets: enlarge compact table/pagination buttons to >= 44px */
-  .btn {
-    min-height: 40px;
-  }
-
-  .table .btn,
-  .btn-compact {
-    min-height: 40px;
-    padding: 8px 12px;
-  }
-
-  .filter-bar select,
-  .filter-bar input {
-    min-height: 40px;
-  }
-
-  .pagination {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
-  }
-
-  .pagination .controls {
-    justify-content: space-between;
-  }
-
-  .pagination .btn-ghost {
-    min-height: 40px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sidebar {
-    transition: none;
-  }
-  tbody tr,
-  .btn {
-    transition: none;
-  }
-}
-
 .sidebar-brand {
   display: flex;
   align-items: center;
@@ -789,3 +689,131 @@ textarea {
   margin: 0;
   font-size: 0.875rem;
 }
+
+/* ==================================================================
+   Responsive — placed after all base component rules so they win by
+   source order. Touch targets are 44px (WCAG 2.2) on small viewports.
+   ================================================================== */
+
+/* Off-canvas sidebar + stacked layout under 900px */
+@media (max-width: 899px) {
+  .mobile-bar {
+    display: flex;
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: 280px;
+    min-width: 0;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop.visible {
+    display: block;
+  }
+
+  .main {
+    padding: 24px;
+    padding-top: 0;
+  }
+
+  /* Page header: title + actions stack */
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header .btn,
+  .page-header .btn-primary {
+    width: 100%;
+  }
+
+  /* Touch targets: 44px minimum (WCAG 2.2 target size) */
+  .btn {
+    min-height: 44px;
+  }
+
+  .table .btn,
+  .btn-compact {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .filter-bar select,
+  .filter-bar input {
+    min-height: 44px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .pagination .controls {
+    justify-content: space-between;
+  }
+
+  .pagination .btn-ghost {
+    min-height: 44px;
+  }
+}
+
+/* Phone: 500px and under — KPI 2-up, single-column forms and detail grids */
+@media (max-width: 599px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .detail-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .order-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main {
+    padding: 16px;
+    padding-top: 0;
+  }
+}
+
+/* Tablet: 600-899px — KPI 4-up, multi-column forms/detail restored */
+@media (min-width: 600px) and (max-width: 899px) {
+  .summary-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .main {
+    padding: 24px;
+    padding-top: 0;
+  }
+
+  .filter-bar select,
+  .filter-bar input {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+  tbody tr,
+  .btn {
+    transition: none;
+  }
+}
+
