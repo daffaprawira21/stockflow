@@ -28,7 +28,7 @@ export function LogoutButton() {
       onClick={handleLogout}
       disabled={pending}
       className="btn btn-ghost"
-      style={{ width: '100%', justifyContent: 'flex-start' }}
+      style={{ justifyContent: 'flex-start' }}
     >
       {pending ? (
         <SpinnerIcon style={{ width: 14, height: 14 }} className="animate-spin" />

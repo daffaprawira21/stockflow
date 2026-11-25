@@ -22,7 +22,11 @@ async function clickToggle(page: import('@playwright/test').Page) {
     const target = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
       (b) => b.offsetParent !== null && /switch to/i.test(b.getAttribute('aria-label') ?? ''),
     );
-    target?.click();
+    if (!target) throw new Error('theme toggle not found in DOM');
+    // A native .click() fires a bubbling MouseEvent that React's root
+    // listener routes to the component's onClick — the same path a real
+    // pointer click takes, without the dev overlay intercepting.
+    target.click();
   });
 }
 
@@ -41,7 +45,6 @@ test('theme toggle switches and persists the theme', async ({ page }) => {
   // Dark -> light: the attribute flips and the choice is persisted.
   await clickToggle(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-
   // The persistence write is async inside the React handler; poll for it.
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('sf_theme')), {
