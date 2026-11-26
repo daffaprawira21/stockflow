@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
+import { consolidateStockItems } from './consolidate';
 import type { AdjustInventoryInput, InventoryListQuery, StockMovementQuery } from './schemas';
 import { serializeInventoryItem, serializeStockAdjustment, serializeStockMovement } from './serializer';
 import type { StockMovementType } from './types';
@@ -207,13 +208,7 @@ async function lockProductStocks(
 }
 
 function consolidateOrderStockItems(items: OrderStockItem[]): OrderStockItem[] {
-  const quantities = new Map<string, number>();
-  for (const item of items) {
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
-  }
-  return [...quantities.entries()]
-    .map(([productId, quantity]) => ({ productId, quantity }))
-    .sort((left, right) => left.productId.localeCompare(right.productId));
+  return consolidateStockItems(items);
 }
 
 export async function restoreStockForOrder(
