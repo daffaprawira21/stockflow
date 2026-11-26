@@ -1,6 +1,11 @@
 import { apiHandler } from '@/lib/api/api-handler';
 import prisma from '@/lib/db';
-import { orderListQuerySchema, createOrderSchema } from '@/modules/orders/schemas';
+import {
+  orderListQuerySchema,
+  createOrderSchema,
+  type CreateOrderInput,
+  type OrderListQuery,
+} from '@/modules/orders/schemas';
 import { createOrder, listOrders } from '@/modules/orders/service';
 import { z } from 'zod';
 
@@ -9,9 +14,9 @@ import { z } from 'zod';
  * the route body. The pipeline validates it before `run`.
  *
  * Length is checked on the raw header value (no trim), matching the pre-
- * migration behaviour: a 255+-char raw header is rejected even if it trims
- * to ≤255. The value is trimmed before use so leading/trailing whitespace
- * doesn't change the key.
+ * migration behaviour: a raw header longer than 255 chars is rejected even
+ * if it trims to 255 or fewer. The value is trimmed before use so leading/
+ * trailing whitespace doesn't change the key.
  */
 const idempotencyKeyHeaderSchema = z.object({
   'idempotency-key': z.string().min(1).max(255),
@@ -24,10 +29,10 @@ export const POST = apiHandler({
   body: createOrderSchema,
   run: async (ctx) => {
     const admin = ctx.admin!;
-    const rawKey = (ctx.headers as { 'idempotency-key': string })['idempotency-key'];
+    const rawKey = ctx.headers!['idempotency-key'];
     const key = rawKey.trim();
-    const items = ctx.body as { items: { productId: string; quantity: number }[] };
-    const result = await createOrder(prisma, admin.id, key, items);
+    const input = ctx.body as CreateOrderInput;
+    const result = await createOrder(prisma, admin.id, key, input);
     return { data: result.order, status: result.replayed ? 200 : 201 };
   },
 }).handler;
@@ -37,7 +42,7 @@ export const GET = apiHandler({
   auth: true,
   query: orderListQuerySchema,
   run: async (ctx) => {
-    const result = await listOrders(prisma, ctx.query as never);
+    const result = await listOrders(prisma, ctx.query as OrderListQuery);
     return { data: result.data, meta: result.meta };
   },
 }).handler;

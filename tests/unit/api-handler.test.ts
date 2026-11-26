@@ -38,7 +38,7 @@ function makeRequest(init: {
 }
 
 async function run(
-  config: Omit<ApiHandlerConfig, 'request'>,
+  config: ApiHandlerConfig,
   request: Request,
   guard?: Guard,
   params?: Promise<Record<string, string>>,
@@ -258,6 +258,20 @@ describe('apiHandler pipeline', () => {
       Promise.resolve({ id: 'not-a-uuid' }),
     );
     expect(status).toBe(400);
+  });
+
+  it('returns 500 when a declared param has no params promise (pipeline contract)', async () => {
+    const { status } = await run(
+      {
+        auth: false,
+        param: { name: 'id', schema: z.uuid() },
+        run: async () => ({ data: { ok: true } }),
+      },
+      makeRequest({ method: 'GET' }),
+      undefined,
+      undefined, // no params promise despite declaring `param`
+    );
+    expect(status).toBe(500);
   });
 
   it('rejects a header longer than 255 chars even when it trims shorter (idempotency-key edge)', async () => {

@@ -158,8 +158,16 @@ export function apiHandler<
       // Route param validation: `params` is the unresolved Next 16
       // `context.params` promise. The value is read + validated here so the
       // pipeline owns it; `run` receives the validated `param` on ctx.
+      // A route that declares `param` MUST be called with a params promise —
+      // otherwise the param is required but absent, which is a pipeline
+      // contract error (500), not a silent skip.
       let param: unknown;
-      if (config.param && params) {
+      if (config.param) {
+        if (!params) {
+          throw new Error(
+            `apiHandler: route declares param "${config.param.name}" but no params promise was provided`,
+          );
+        }
         const resolved = await params;
         const value = resolved[config.param.name];
         const parsed = config.param.schema.safeParse(value);
