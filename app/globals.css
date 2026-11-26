@@ -526,7 +526,6 @@ textarea {
   gap: 12px;
 }
 
-/* The email row + the theme toggle sit above the full-width sign-out button */
 /* Theme toggle + sign-out share one compact row in the sidebar footer.
    The toggle is a fixed icon button; sign-out flexes to fill the rest. */
 .sidebar-footer-actions {
@@ -539,16 +538,10 @@ textarea {
   flex-shrink: 0;
 }
 
-/* Sign-out fills the remaining width of the row. Outside the row (no
-   current use) it is a default-width button. */
+/* Sign-out fills the remaining width of the row. */
 .sidebar-footer-actions .btn {
   width: auto;
   flex: 1;
-}
-
-.sidebar-footer > .btn,
-.sidebar-footer > div:not(.sidebar-footer-actions) .btn {
-  width: 100%;
 }
 
 .main {

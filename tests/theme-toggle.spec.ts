@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { THEME_STORAGE_KEY } from '../lib/theme';
 
-const TOGGLE = (page: import('@playwright/test').Page) =>
+const getThemeToggle = (page: import('@playwright/test').Page) =>
   page.getByRole('button', { name: /[Ss]witch to (light|dark) mode/ }).first();
 
 // The theme toggle is a user preference. It must:
@@ -35,47 +36,58 @@ test('theme toggle switches and persists the theme', async ({ page }) => {
 
   // Clear any stored choice so the no-flash script falls back to the system,
   // then force a known dark starting point.
-  await page.evaluate(() => {
-    localStorage.removeItem('sf_theme');
+  await page.evaluate((key: string) => {
+    localStorage.removeItem(key);
     document.documentElement.dataset.theme = 'dark';
-  });
+  }, THEME_STORAGE_KEY);
 
-  await expect(TOGGLE(page)).toBeVisible();
+  await expect(getThemeToggle(page)).toBeVisible();
 
   // Dark -> light: the attribute flips and the choice is persisted.
   await clickToggle(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   // The persistence write is async inside the React handler; poll for it.
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('sf_theme')), {
-      timeout: 5000,
-    })
+    .poll(
+      () =>
+        page.evaluate((key: string) => {
+          return localStorage.getItem(key);
+        }, THEME_STORAGE_KEY),
+      {
+        timeout: 5000,
+      },
+    )
     .toEqual('light');
 
   // Light -> dark: the attribute and the persisted value both follow.
   await clickToggle(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('sf_theme')), {
-      timeout: 5000,
-    })
+    .poll(
+      () =>
+        page.evaluate((key: string) => {
+          return localStorage.getItem(key);
+        }, THEME_STORAGE_KEY),
+      {
+        timeout: 5000,
+      },
+    )
     .toEqual('dark');
 });
 
 test('a stored light choice survives a fresh page load', async ({ page }) => {
   // Pre-seed the operator's choice, then load the login page. The no-flash
   // script in the root layout applies it to <html> before first paint.
-  await page.addInitScript(() => {
-    window.localStorage.setItem('sf_theme', 'light');
-    // Also set the attribute directly so the assertion is deterministic even
-    // if the head script's timing races the first paint in dev mode.
-    document.documentElement.setAttribute('data-theme', 'light');
-  });
+  await page.addInitScript((args: string[]) => {
+    const [key, value] = args;
+    window.localStorage.setItem(key, value);
+    document.documentElement.setAttribute('data-theme', value);
+  }, [THEME_STORAGE_KEY, 'light']);
   await page.goto('/login');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
 test('login page exposes a theme toggle', async ({ page }) => {
   await page.goto('/login');
-  await expect(TOGGLE(page)).toBeVisible();
+  await expect(getThemeToggle(page)).toBeVisible();
 });
