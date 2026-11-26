@@ -24,16 +24,18 @@ type OrderActionsProps = {
 export function OrderActions({ id, status }: OrderActionsProps) {
   const inputId = useId();
   const [cancelReason, setCancelReason] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const canConfirm = status === 'PENDING';
   const canCancel = status === 'PENDING' || status === 'CONFIRMED';
   const canShip = status === 'CONFIRMED';
 
-  const { mutate, pending, error, setError } = useApiMutation({
+  const { mutate, pending, error: apiError } = useApiMutation({
     errorMessage,
   });
 
   async function post(path: string, body?: Record<string, string>) {
+    setValidationError(null);
     await mutate({
       url: `/api/orders/${id}${path}`,
       body,
@@ -44,11 +46,13 @@ export function OrderActions({ id, status }: OrderActionsProps) {
     event.preventDefault();
     const reason = cancelReason.trim();
     if (reason === '') {
-      setError('A cancellation reason is required.');
+      setValidationError('A cancellation reason is required.');
       return;
     }
     void post('/cancel', { reason });
   }
+
+  const error = apiError ?? validationError;
 
   return (
     <div>

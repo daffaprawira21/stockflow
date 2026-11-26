@@ -45,6 +45,9 @@ export function CreateOrderForm() {
   const { mutate, pending, error } = useApiMutation<{ id: string }>({
     url: '/api/orders',
     errorMessage,
+    // The old form navigated to the new order without refreshing the list
+    // cache; keep that exact behaviour.
+    refresh: false,
   });
 
   function loadProducts() {

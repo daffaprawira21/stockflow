@@ -16,6 +16,12 @@ export type MutationOptions<TSuccess = unknown> = {
    */
   errorMessage?: (body: ApiErrorBody | null) => string;
   onSuccess?: (data: TSuccess) => void;
+  /**
+   * Call `router.refresh()` on success (default `true`). Set `false` when the
+   * form navigates away instead (e.g. create-order pushes to the new order,
+   * so the list refresh is redundant and the old form never called it).
+   */
+  refresh?: boolean;
 };
 
 export type MutationResult<TSuccess = unknown> = {
@@ -31,7 +37,15 @@ export async function executeApiMutation<TSuccess = unknown>(
   options: MutationOptions<TSuccess>,
   router?: { refresh: () => void },
 ): Promise<MutationResult<TSuccess>> {
-  const { url, method = 'POST', body, headers, errorMessage = sharedErrorMessage, onSuccess } = options;
+  const {
+    url,
+    method = 'POST',
+    body,
+    headers,
+    errorMessage = sharedErrorMessage,
+    onSuccess,
+    refresh = true,
+  } = options;
 
   if (!url) {
     throw new Error('useApiMutation: URL must be specified');
@@ -61,7 +75,9 @@ export async function executeApiMutation<TSuccess = unknown>(
 
     const resultData = (data.data ?? null) as TSuccess;
     onSuccess?.(resultData);
-    router?.refresh();
+    if (refresh) {
+      router?.refresh();
+    }
 
     return { ok: true, data: resultData, error: null };
   } catch {
@@ -84,7 +100,6 @@ export function useApiMutation<TSuccess = unknown>(
   mutate: (override?: MutationOptions<TSuccess>) => Promise<MutationResult<TSuccess>>;
   pending: boolean;
   error: string | null;
-  clearError: () => void;
   setError: (msg: string | null) => void;
 } {
   const router = useRouter();
@@ -118,5 +133,5 @@ export function useApiMutation<TSuccess = unknown>(
     [router],
   );
 
-  return { mutate, pending, error, clearError: () => setError(null), setError };
+  return { mutate, pending, error, setError };
 }
