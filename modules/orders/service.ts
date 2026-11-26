@@ -30,11 +30,7 @@ export type CreateOrderResult = {
 
 const CREATE_ORDER_OPERATION = 'CREATE_ORDER';
 
-function consolidateItems(items: CreateOrderInput['items']) {
-  return consolidateStockItems(items);
-}
-
-function requestHash(items: ReturnType<typeof consolidateItems>): string {
+function requestHash(items: ReturnType<typeof consolidateStockItems>): string {
   const canonicalItems = [...items].sort((left, right) =>
     left.productId.localeCompare(right.productId),
   );
@@ -75,7 +71,7 @@ export async function createOrder(
   idempotencyKey: string,
   input: CreateOrderInput,
 ): Promise<CreateOrderResult> {
-  const items = consolidateItems(input.items);
+  const items = consolidateStockItems(input.items);
   const hash = requestHash(items);
 
   return prisma.$transaction(async (tx) => {

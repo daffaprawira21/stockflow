@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../lib/api/errors';
-import { consolidateStockItems } from '../../modules/inventory/consolidate';
+import { consolidateStockItems, MAX_STOCK_QUANTITY } from '../../modules/inventory/consolidate';
 
 describe('consolidateStockItems', () => {
   it('sums quantities per product and sorts by productId', () => {
@@ -27,26 +27,24 @@ describe('consolidateStockItems', () => {
   });
 
   it('throws VALIDATION_ERROR when a consolidated quantity exceeds the Postgres bound', () => {
-    const MAX = 2_147_483_647;
     expect(() =>
       consolidateStockItems([
-        { productId: 'p', quantity: MAX - 10 },
+        { productId: 'p', quantity: MAX_STOCK_QUANTITY - 10 },
         { productId: 'p', quantity: 20 }, // consolidated = MAX + 10
       ]),
     ).toThrowError(ApiError);
     expect(() =>
       consolidateStockItems([
-        { productId: 'p', quantity: MAX - 10 },
+        { productId: 'p', quantity: MAX_STOCK_QUANTITY - 10 },
         { productId: 'p', quantity: 20 },
       ]),
     ).toThrow('Consolidated item quantity exceeds the allowed maximum');
   });
 
   it('allows a consolidated quantity exactly at the bound', () => {
-    const MAX = 2_147_483_647;
     expect(consolidateStockItems([
-      { productId: 'p', quantity: MAX - 1 },
+      { productId: 'p', quantity: MAX_STOCK_QUANTITY - 1 },
       { productId: 'p', quantity: 1 }, // consolidated = MAX
-    ])).toEqual([{ productId: 'p', quantity: MAX }]);
+    ])).toEqual([{ productId: 'p', quantity: MAX_STOCK_QUANTITY }]);
   });
 });

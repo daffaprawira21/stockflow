@@ -5,7 +5,8 @@ export type ConsolidatedStockItem = {
   quantity: number;
 };
 
-const MAX_POSTGRES_INTEGER = 2_147_483_647;
+/** The maximum quantity a single Postgres int column can hold. */
+export const MAX_STOCK_QUANTITY = 2_147_483_647;
 
 /**
  * Consolidate stock items by product: sum quantities for each product and
@@ -22,7 +23,7 @@ export function consolidateStockItems(
   const quantities = new Map<string, number>();
   for (const item of items) {
     const quantity = (quantities.get(item.productId) ?? 0) + item.quantity;
-    if (quantity > MAX_POSTGRES_INTEGER) {
+    if (quantity > MAX_STOCK_QUANTITY) {
       throw new ApiError('VALIDATION_ERROR', 'Consolidated item quantity exceeds the allowed maximum');
     }
     quantities.set(item.productId, quantity);
