@@ -139,19 +139,19 @@ describe('apiHandler pipeline', () => {
   });
 
   it('passes the validated headers through to run (idempotency-key available to the route)', async () => {
-    let received: { headers: Record<string, string> | undefined } | undefined;
+    let received: { headers: unknown } | undefined;
     const { status } = await run(
       {
         headers: z.object({ 'idempotency-key': z.string().min(1).max(255) }),
         run: async (ctx) => {
-          received = ctx;
+          received = { headers: ctx.headers };
           return { data: { ok: true } };
         },
       },
       makeRequest({ method: 'POST', body: {}, headers: { 'idempotency-key': 'key-123' } }),
     );
     expect(status).toBe(200);
-    expect(received?.headers?.['idempotency-key']).toBe('key-123');
+    expect((received?.headers as { 'idempotency-key': string })['idempotency-key']).toBe('key-123');
   });
 
   it('returns VALIDATION_ERROR (400) when the query fails the query schema', async () => {

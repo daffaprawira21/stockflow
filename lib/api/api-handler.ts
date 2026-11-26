@@ -8,13 +8,18 @@ import { validationDetails } from './validation';
 import type { PublicUser } from '../../modules/auth/service';
 import type { z } from 'zod';
 
-export type ApiHandlerContext = {
+export type ApiHandlerContext<
+  B = unknown,
+  Q = unknown,
+  H = unknown,
+  P = unknown,
+> = {
   admin: PublicUser | null;
-  body: unknown;
-  query: Record<string, string> | undefined;
-  headers: Record<string, string> | undefined;
+  body: B | undefined;
+  query: Q | undefined;
+  headers: H | undefined;
   /** The validated route param (when `config.param` is set). */
-  param?: unknown;
+  param: P | undefined;
 };
 
 export type ApiHandlerResult = {
@@ -23,25 +28,30 @@ export type ApiHandlerResult = {
   status?: number;
 };
 
-export type ApiHandlerConfig = {
+export type ApiHandlerConfig<
+  B extends z.ZodType = z.ZodType,
+  Q extends z.ZodType = z.ZodType,
+  H extends z.ZodType = z.ZodType,
+  P extends z.ZodType = z.ZodType,
+> = {
   /** Optional: reject a non-matching HTTP method early (405). */
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Run the origin check + admin guard before `run`. */
   auth?: boolean;
   /** Zod schema for the JSON body. Parsed + validated before `run`. */
-  body?: z.ZodType;
+  body?: B;
   /** Zod schema for the URL query string. Parsed + validated before `run`. */
-  query?: z.ZodType;
+  query?: Q;
   /** Zod schema for a subset of request headers (lower-cased keys). */
-  headers?: z.ZodType;
+  headers?: H;
   /** Zod schema for a route param (e.g. `id`). Parsed + validated before `run`. */
-  param?: { name: string; schema: z.ZodType };
+  param?: { name: string; schema: P };
   /**
    * Route logic. Receives the validated context + the original Request + the
    * unresolved route params (Next 16 passes `context.params` as a promise).
    */
   run: (
-    ctx: ApiHandlerContext,
+    ctx: ApiHandlerContext<z.infer<B>, z.infer<Q>, z.infer<H>, z.infer<P>>,
     request: Request,
     params?: Promise<Record<string, string>>,
   ) => Promise<Response | ApiHandlerResult>;
@@ -80,8 +90,13 @@ export type ApiHandlerInstance = {
   createHandler: (request: Request, params?: Promise<Record<string, string>>) => Promise<Response>;
 };
 
-export function apiHandler(
-  config: ApiHandlerConfig,
+export function apiHandler<
+  B extends z.ZodType,
+  Q extends z.ZodType,
+  H extends z.ZodType,
+  P extends z.ZodType,
+>(
+  config: ApiHandlerConfig<B, Q, H, P>,
   adminGuard: AdminGuard = defaultAdminGuard,
 ): ApiHandlerInstance {
   const createHandler = async (
@@ -102,7 +117,7 @@ export function apiHandler(
         admin = await adminGuard(request);
       }
 
-      let headers: Record<string, string> | undefined;
+      let headers: unknown;
       if (config.headers) {
         const raw: Record<string, string> = {};
         request.headers.forEach((value, key) => {
@@ -112,17 +127,17 @@ export function apiHandler(
         if (!parsed.success) {
           throw new ApiError('VALIDATION_ERROR', 'Request header validation failed', validationDetails(parsed.error));
         }
-        headers = parsed.data as Record<string, string>;
+        headers = parsed.data;
       }
 
-      let query: Record<string, string> | undefined;
+      let query: unknown;
       if (config.query) {
         const rawQuery = Object.fromEntries(new URL(request.url).searchParams.entries());
         const parsed = config.query.safeParse(rawQuery);
         if (!parsed.success) {
           throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsed.error));
         }
-        query = parsed.data as Record<string, string>;
+        query = parsed.data;
       }
 
       let body: unknown;
@@ -154,7 +169,13 @@ export function apiHandler(
         param = parsed.data;
       }
 
-      const ctx = { admin, body, query, headers, param };
+      const ctx: ApiHandlerContext<z.infer<B>, z.infer<Q>, z.infer<H>, z.infer<P>> = {
+        admin,
+        body: body as z.infer<B> | undefined,
+        query: query as z.infer<Q> | undefined,
+        headers: headers as z.infer<H> | undefined,
+        param: param as z.infer<P> | undefined,
+      };
 
       const result = await config.run(ctx, request, params);
 
