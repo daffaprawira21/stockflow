@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { executeApiMutation } from '../../lib/use-api-mutation';
+import type { ApiErrorBody } from '../../lib/api-error';
 
 describe('executeApiMutation', () => {
   beforeEach(() => {
@@ -49,7 +50,7 @@ describe('executeApiMutation', () => {
       }),
     );
 
-    const errorMessage = (body: any) =>
+    const errorMessage = (body: ApiErrorBody | null) =>
       body?.error?.code === 'SKU_ALREADY_EXISTS'
         ? 'A product with this SKU already exists.'
         : 'fallback';
@@ -101,7 +102,10 @@ describe('executeApiMutation', () => {
   });
 
   it('throws if url is missing', async () => {
-    await expect(executeApiMutation({} as any)).rejects.toThrow(
+    // MutationOptions.url is optional in the type (so it can be filled by a
+    // per-call override), but executeApiMutation requires one. Cast to
+    // exercise the guard.
+    await expect(executeApiMutation({})).rejects.toThrow(
       'useApiMutation: URL must be specified',
     );
   });

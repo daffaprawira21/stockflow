@@ -37,22 +37,34 @@ function makeRequest(init: {
   });
 }
 
+type ResponseBody = {
+  success: boolean;
+  data: {
+    echo?: string;
+    raw?: boolean;
+    ok?: boolean;
+    id?: string;
+  } | { id: string }[] | null;
+  meta: { totalItems?: number } | null;
+  error: { code: string; details: Array<{ path?: string }> };
+};
+
 async function run(
   config: ApiHandlerConfig,
   request: Request,
   guard?: Guard,
   params?: Promise<Record<string, string>>,
-): Promise<{ status: number; body: any }> {
+): Promise<{ status: number; body: ResponseBody }> {
   const full: ApiHandlerConfig = { ...config };
   const { createHandler } = apiHandler(full, guard ?? defaultGuard);
   const response = await createHandler(request, params);
   const status = response.status;
   const text = await response.text();
-  let body: any;
+  let body: ResponseBody;
   try {
-    body = JSON.parse(text);
+    body = JSON.parse(text) as ResponseBody;
   } catch {
-    body = text;
+    body = text as unknown as ResponseBody;
   }
   return { status, body };
 }
@@ -173,7 +185,7 @@ describe('apiHandler pipeline', () => {
     );
     expect(status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data.echo).toBe('x');
+    expect((body.data as { echo: string }).echo).toBe('x');
   });
 
   it('returns 201 when run reports a custom status', async () => {
@@ -197,7 +209,7 @@ describe('apiHandler pipeline', () => {
     );
     expect(status).toBe(200);
     expect(body.data).toEqual([{ id: '1' }]);
-    expect(body.meta.totalItems).toBe(1);
+    expect(body.meta!.totalItems).toBe(1);
   });
 
   it('passes through a raw Response returned by run unchanged', async () => {
@@ -206,7 +218,7 @@ describe('apiHandler pipeline', () => {
       makeRequest({ method: 'GET' }),
     );
     expect(status).toBe(200);
-    expect(body.data.raw).toBe(true);
+    expect((body.data as { raw: boolean }).raw).toBe(true);
   });
 
   it('maps unexpected errors to INTERNAL_SERVER_ERROR (500)', async () => {

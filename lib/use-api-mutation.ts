@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
 
@@ -106,12 +106,9 @@ export function useApiMutation<TSuccess = unknown>(
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const optionsRef = useRef(initialOptions);
-  optionsRef.current = initialOptions;
-
   const mutate = useCallback(
     async (override?: MutationOptions<TSuccess>): Promise<MutationResult<TSuccess>> => {
-      const base = optionsRef.current;
+      const base = initialOptions;
       const merged: MutationOptions<TSuccess> = {
         ...base,
         ...override,
@@ -130,7 +127,7 @@ export function useApiMutation<TSuccess = unknown>(
       setPending(false);
       return result;
     },
-    [router],
+    [router, initialOptions],
   );
 
   return { mutate, pending, error, setError };
