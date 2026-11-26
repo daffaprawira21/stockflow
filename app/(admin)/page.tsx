@@ -112,7 +112,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="card card-flat" style={{ marginBottom: 24 }}>
-        <h2 className="section-title">Fulfillment pipeline</h2>
+        <h2 className="section-title">Order status</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           {pipeline.map(({ key, value }) => {
             const meta = STATUS_META[key];
