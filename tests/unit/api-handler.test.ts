@@ -43,8 +43,8 @@ async function run(
   guard?: Guard,
 ): Promise<{ status: number; body: any }> {
   const full: ApiHandlerConfig = { ...config };
-  const handler = apiHandler(full, guard ?? defaultGuard);
-  const response = await handler(request);
+  const { createHandler } = apiHandler(full, guard ?? defaultGuard);
+  const response = await createHandler(request);
   const status = response.status;
   const text = await response.text();
   let body: any;

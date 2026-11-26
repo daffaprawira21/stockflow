@@ -1,57 +1,37 @@
-import { ApiError } from '@/lib/api/errors';
-import { requireAdmin } from '@/lib/api/guard';
-import { isOriginAllowed } from '@/lib/api/origin';
-import { jsonFromError, jsonPaginated, jsonSuccess } from '@/lib/api/response';
-import { validationDetails } from '@/lib/api/validation';
+import { apiHandler } from '@/lib/api/api-handler';
 import prisma from '@/lib/db';
-import { allowedOrigins } from '@/lib/env';
-import { createOrderSchema, orderListQuerySchema } from '@/modules/orders/schemas';
+import { orderListQuerySchema, createOrderSchema } from '@/modules/orders/schemas';
 import { createOrder, listOrders } from '@/modules/orders/service';
+import { z } from 'zod';
 
-export async function POST(request: Request) {
-  try {
-    if (!isOriginAllowed(request, allowedOrigins)) {
-      throw new ApiError('FORBIDDEN', undefined, [{ origin: request.headers.get('origin') }]);
-    }
+/**
+ * The idempotency-key rule (1–255 chars) lives in the header schema, not in
+ * the route body. The pipeline validates it before `run`.
+ */
+const idempotencyKeyHeaderSchema = z.object({
+  'idempotency-key': z.string().trim().min(1).max(255),
+});
 
-    const admin = await requireAdmin(prisma, request);
-    const idempotencyKey = request.headers.get('idempotency-key')?.trim();
-    if (!idempotencyKey || idempotencyKey.length > 255) {
-      throw new ApiError('VALIDATION_ERROR', 'Idempotency-Key header must contain 1 to 255 characters');
-    }
+export const POST = apiHandler({
+  method: 'POST',
+  auth: true,
+  headers: idempotencyKeyHeaderSchema,
+  body: createOrderSchema,
+  run: async (ctx) => {
+    const admin = ctx.admin!;
+    const key = (ctx.headers as { 'idempotency-key': string })['idempotency-key'];
+    const items = ctx.body as { items: { productId: string; quantity: number }[] };
+    const result = await createOrder(prisma, admin.id, key, items);
+    return { data: result.order, status: result.replayed ? 200 : 201 };
+  },
+}).handler;
 
-    let payload: unknown;
-    try {
-      payload = await request.json();
-    } catch {
-      throw new ApiError('VALIDATION_ERROR', 'Request body must be valid JSON');
-    }
-
-    const parsed = createOrderSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsed.error));
-    }
-
-    const result = await createOrder(prisma, admin.id, idempotencyKey, parsed.data);
-    return jsonSuccess(result.order, { status: result.replayed ? 200 : 201 });
-  } catch (error) {
-    return jsonFromError(error);
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    await requireAdmin(prisma, request);
-
-    const rawQuery = Object.fromEntries(new URL(request.url).searchParams.entries());
-    const parsed = orderListQuerySchema.safeParse(rawQuery);
-    if (!parsed.success) {
-      throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsed.error));
-    }
-
-    const result = await listOrders(prisma, parsed.data);
-    return jsonPaginated(result.data, result.meta);
-  } catch (error) {
-    return jsonFromError(error);
-  }
-}
+export const GET = apiHandler({
+  method: 'GET',
+  auth: true,
+  query: orderListQuerySchema,
+  run: async (ctx) => {
+    const result = await listOrders(prisma, ctx.query as never);
+    return { data: result.data, meta: result.meta };
+  },
+}).handler;

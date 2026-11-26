@@ -13,6 +13,8 @@ export type ApiHandlerContext = {
   body: unknown;
   query: Record<string, string> | undefined;
   headers: Record<string, string> | undefined;
+  /** The validated route param (when `config.param` is set). */
+  param?: unknown;
 };
 
 export type ApiHandlerResult = {
@@ -32,8 +34,17 @@ export type ApiHandlerConfig = {
   query?: z.ZodType;
   /** Zod schema for a subset of request headers (lower-cased keys). */
   headers?: z.ZodType;
-  /** Route logic. Receives the validated context + the original Request. */
-  run: (ctx: ApiHandlerContext, request: Request) => Promise<Response | ApiHandlerResult>;
+  /** Zod schema for a route param (e.g. `id`). Parsed + validated before `run`. */
+  param?: { name: string; schema: z.ZodType };
+  /**
+   * Route logic. Receives the validated context + the original Request + the
+   * unresolved route params (Next 16 passes `context.params` as a promise).
+   */
+  run: (
+    ctx: ApiHandlerContext,
+    request: Request,
+    params?: Promise<Record<string, string>>,
+  ) => Promise<Response | ApiHandlerResult>;
 };
 
 /**
@@ -45,21 +56,38 @@ type AdminGuard = (request: Request) => Promise<PublicUser>;
 
 const defaultAdminGuard: AdminGuard = (request) => requireAdmin(prisma as never, request);
 
+export type NextRouteContext = {
+  params: Promise<Record<string, string>>;
+};
+
 /**
  * The deep route pipeline. One object in, one Response out.
  *
  * Owns, in order: the state-changing-origin check, the admin guard, JSON body
- * parse, Zod validation of body/query/headers, and uniform response/error
- * mapping. A route body reduces to `apiHandler({ ... })`.
+ * parse, Zod validation of body/query/headers/param, and uniform response/
+ * error mapping. A route body reduces to `export const POST = apiHandler({...})`.
  *
  * The pipeline holds NO Prisma client: the guard is the single seam where the
  * DB enters, and it is injectable so the pipeline itself stays testable.
+ *
+ * Exported for unit tests: `handler` is the raw `(request, params?) => Promise<Response>`
+ * that Next's route handlers delegate to.
  */
+export type ApiHandlerInstance = {
+  /** The Next-compatible route handler: `(request, context) => Promise<Response>`. */
+  handler: (request: Request, context?: NextRouteContext) => Promise<Response>;
+  /** The raw pipeline, for tests: `(request, params?) => Promise<Response>`. */
+  createHandler: (request: Request, params?: Promise<Record<string, string>>) => Promise<Response>;
+};
+
 export function apiHandler(
   config: ApiHandlerConfig,
   adminGuard: AdminGuard = defaultAdminGuard,
-): (request: Request) => Promise<Response> {
-  return async (request: Request) => {
+): ApiHandlerInstance {
+  const createHandler = async (
+    request: Request,
+    params?: Promise<Record<string, string>>,
+  ): Promise<Response> => {
     try {
       if (config.method && request.method.toUpperCase() !== config.method.toUpperCase()) {
         throw new ApiError('VALIDATION_ERROR', `Method ${request.method} not allowed`);
@@ -112,7 +140,23 @@ export function apiHandler(
         body = parsed.data;
       }
 
-      const result = await config.run({ admin, body, query, headers }, request);
+      // Route param validation: `params` is the unresolved Next 16
+      // `context.params` promise. The value is read + validated here so the
+      // pipeline owns it; `run` receives the validated `param` on ctx.
+      let param: unknown;
+      if (config.param && params) {
+        const resolved = await params;
+        const value = resolved[config.param.name];
+        const parsed = config.param.schema.safeParse(value);
+        if (!parsed.success) {
+          throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsed.error));
+        }
+        param = parsed.data;
+      }
+
+      const ctx = { admin, body, query, headers, param };
+
+      const result = await config.run(ctx, request, params);
 
       if (result instanceof Response) {
         return result;
@@ -125,4 +169,16 @@ export function apiHandler(
       return jsonFromError(error);
     }
   };
+
+  // Next-compatible route handler: `(request, context) => Promise<Response>`.
+  // Next passes `context.params` as the unresolved promise; we forward it.
+  const handler = async (
+    request: Request,
+    context?: NextRouteContext,
+  ): Promise<Response> => {
+    const params = context?.params;
+    return createHandler(request, params);
+  };
+
+  return { handler, createHandler };
 }
