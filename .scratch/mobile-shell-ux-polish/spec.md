@@ -43,6 +43,9 @@ against the sticky `.mobile-bar` (68px tall). On a task surface the title reads 
 - `app/globals.css` `@media (max-width: 599px)`: `.main { padding: 16px; padding-top: 12px; }`
 - `app/globals.css` `@media (min-width: 600px) and (max-width: 899px)`: sets
   `.main { padding: 24px; }` so tablet uses the 24px padding scale.
+  *Note: this rule pre-dates PR #19; it was already present in the codebase before
+  this spec was written. The spec's "Files touched" split is historical, not
+  authoritative for attribution.*
 
 ### 4. Mobile bar logo too small next to the hamburger — 28px → 32px
 

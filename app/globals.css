@@ -361,8 +361,7 @@ textarea {
 
 /* Theme toggle — icon-only control in the sidebar footer.
    Carries the same 120ms transition as the other controls.
-   On mobile (<900px) it lives inside the off-canvas drawer and inherits
-   the 44px touch-target floor from the .sidebar-footer-actions row. */
+   On mobile (<900px) it lives inside the off-canvas drawer. */
 .theme-toggle {
   display: inline-flex;
   align-items: center;

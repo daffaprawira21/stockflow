@@ -31,6 +31,11 @@ async function clickToggle(page: import('@playwright/test').Page) {
   });
 }
 
+const readStoredTheme = (page: import('@playwright/test').Page) =>
+  page.evaluate((key: string) => {
+    return localStorage.getItem(key);
+  }, THEME_STORAGE_KEY);
+
 test('theme toggle switches and persists the theme', async ({ page }) => {
   await page.goto('/login');
 
@@ -47,32 +52,12 @@ test('theme toggle switches and persists the theme', async ({ page }) => {
   await clickToggle(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   // The persistence write is async inside the React handler; poll for it.
-  await expect
-    .poll(
-      () =>
-        page.evaluate((key: string) => {
-          return localStorage.getItem(key);
-        }, THEME_STORAGE_KEY),
-      {
-        timeout: 5000,
-      },
-    )
-    .toEqual('light');
+  await expect.poll(() => readStoredTheme(page), { timeout: 5000 }).toEqual('light');
 
   // Light -> dark: the attribute and the persisted value both follow.
   await clickToggle(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect
-    .poll(
-      () =>
-        page.evaluate((key: string) => {
-          return localStorage.getItem(key);
-        }, THEME_STORAGE_KEY),
-      {
-        timeout: 5000,
-      },
-    )
-    .toEqual('dark');
+  await expect.poll(() => readStoredTheme(page), { timeout: 5000 }).toEqual('dark');
 });
 
 test('a stored light choice survives a fresh page load', async ({ page }) => {
