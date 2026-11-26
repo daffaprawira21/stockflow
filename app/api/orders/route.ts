@@ -7,9 +7,14 @@ import { z } from 'zod';
 /**
  * The idempotency-key rule (1–255 chars) lives in the header schema, not in
  * the route body. The pipeline validates it before `run`.
+ *
+ * Length is checked on the raw header value (no trim), matching the pre-
+ * migration behaviour: a 255+-char raw header is rejected even if it trims
+ * to ≤255. The value is trimmed before use so leading/trailing whitespace
+ * doesn't change the key.
  */
 const idempotencyKeyHeaderSchema = z.object({
-  'idempotency-key': z.string().trim().min(1).max(255),
+  'idempotency-key': z.string().min(1).max(255),
 });
 
 export const POST = apiHandler({
@@ -19,7 +24,8 @@ export const POST = apiHandler({
   body: createOrderSchema,
   run: async (ctx) => {
     const admin = ctx.admin!;
-    const key = (ctx.headers as { 'idempotency-key': string })['idempotency-key'];
+    const rawKey = (ctx.headers as { 'idempotency-key': string })['idempotency-key'];
+    const key = rawKey.trim();
     const items = ctx.body as { items: { productId: string; quantity: number }[] };
     const result = await createOrder(prisma, admin.id, key, items);
     return { data: result.order, status: result.replayed ? 200 : 201 };

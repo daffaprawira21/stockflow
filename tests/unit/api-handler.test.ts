@@ -41,10 +41,11 @@ async function run(
   config: Omit<ApiHandlerConfig, 'request'>,
   request: Request,
   guard?: Guard,
+  params?: Promise<Record<string, string>>,
 ): Promise<{ status: number; body: any }> {
   const full: ApiHandlerConfig = { ...config };
   const { createHandler } = apiHandler(full, guard ?? defaultGuard);
-  const response = await createHandler(request);
+  const response = await createHandler(request, params);
   const status = response.status;
   const text = await response.text();
   let body: any;
@@ -222,6 +223,56 @@ describe('apiHandler pipeline', () => {
     const { status } = await run(
       { method: 'POST', auth: false, run: async () => ({ data: { ok: true } }) },
       makeRequest({ method: 'GET' }),
+    );
+    expect(status).toBe(400);
+  });
+
+  it('validates a route param and passes the parsed value to run', async () => {
+    let received: { param?: unknown } | undefined;
+    const { status } = await run(
+      {
+        auth: false,
+        param: { name: 'id', schema: z.uuid() },
+        run: async (ctx) => {
+          received = ctx;
+          return { data: { ok: true } };
+        },
+      },
+      makeRequest({ method: 'GET' }),
+      undefined,
+      Promise.resolve({ id: '123e4567-e89b-12d3-a456-426614174000' }),
+    );
+    expect(status).toBe(200);
+    expect(received?.param).toBe('123e4567-e89b-12d3-a456-426614174000');
+  });
+
+  it('returns 400 when the route param fails the param schema', async () => {
+    const { status } = await run(
+      {
+        auth: false,
+        param: { name: 'id', schema: z.uuid() },
+        run: async () => ({ data: { ok: true } }),
+      },
+      makeRequest({ method: 'GET' }),
+      undefined,
+      Promise.resolve({ id: 'not-a-uuid' }),
+    );
+    expect(status).toBe(400);
+  });
+
+  it('rejects a header longer than 255 chars even when it trims shorter (idempotency-key edge)', async () => {
+    // The route's header schema is `z.string().min(1).max(255)` with NO trim
+    // before the length check (trim happens only at use, in run). A 256-char
+    // raw header is therefore rejected even though it trims to 255 — matching
+    // pre-migration behaviour. This mirrors the route's schema exactly.
+    const longKey = 'a'.repeat(256); // 256 chars raw
+    const { status } = await run(
+      {
+        auth: false,
+        headers: z.object({ 'idempotency-key': z.string().min(1).max(255) }),
+        run: async () => ({ data: { ok: true } }),
+      },
+      makeRequest({ method: 'POST', body: {}, headers: { 'idempotency-key': longKey } }),
     );
     expect(status).toBe(400);
   });
