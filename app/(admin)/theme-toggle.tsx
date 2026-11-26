@@ -22,20 +22,23 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  // Hydrate from the attribute the no-flash script set on first paint; fall
-  // back to the system default (dark-first, matching the committed world) so
-  // there is no wrong-icon flash.
-  const [theme, setTheme] = useState<Theme>(
-    () =>
-      (typeof document !== 'undefined' &&
-        (document.documentElement.dataset.theme as Theme | undefined)) ||
-      'dark',
-  );
+  // The no-flash script in layout.tsx sets <html data-theme> before first paint,
+  // but that attribute is invisible to SSR. useState('dark') is a deterministic
+  // server/client initial value; the first effect below reads the real attribute
+  // (or falls back to matchMedia when the script hasn't run yet, e.g. private
+  // mode) and corrects state before the next render. No visible flash: the
+  // attribute is already correct on <html>; only the React icon may be one
+  // frame behind, which is imperceptible on a 14px button.
+  const [theme, setTheme] = useState<Theme>('dark');
   const hydrated = useRef(false);
 
   useEffect(() => {
-    if (hydrated.current) return;
-    hydrated.current = true;
+    if (!hydrated.current) {
+      hydrated.current = true;
+      const attr = (document.documentElement.dataset.theme as Theme | undefined) ?? getSystemTheme();
+      applyTheme(attr);
+      setTheme(attr);
+    }
 
     // Track the OS setting, but only when the operator has no explicit choice
     // (an explicit choice is stored in localStorage).
