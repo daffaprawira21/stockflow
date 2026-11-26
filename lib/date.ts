@@ -9,20 +9,34 @@ import { env } from './env';
  *
  * `value` may be an ISO string, a Date, or a number (epoch ms).
  */
-export function formatDate(value: string | Date | number, tz?: string): string {
-  const zone = tz ?? env.TZ;
+export function formatDate(value: string | Date | number): string {
+  const zone = env.TZ;
+
   const date = value instanceof Date ? value : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return String(value);
   }
 
+  // Guard: a misconfigured (non-IANA) TZ env var would make Intl.DateTimeFormat
+  // throw a RangeError and take down the server page. Fall back to the
+  // environment's own zone (no explicit timeZone) rather than crash.
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat('id-ID', {
+      timeZone: zone,
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  } catch {
+    formatter = new Intl.DateTimeFormat('id-ID', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }
+
   // Intl.DateTimeFormat with a fixed timeZone is deterministic across Node and
   // the browser (both use the ICU data bundled with the runtime), so the
   // server-rendered string matches the first client paint exactly.
-  return new Intl.DateTimeFormat('id-ID', {
-    timeZone: zone,
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return formatter.format(date);
 }
