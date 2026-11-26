@@ -161,7 +161,13 @@ describe('Order read APIs', () => {
 
     expect(response.status).toBe(200);
     expect(body.data.items).toEqual([
-      { productId: product.id, quantity: 2, unitPrice: '100.00', subtotal: '200.00' },
+      {
+        productId: product.id,
+        quantity: 2,
+        unitPrice: '100.00',
+        subtotal: '200.00',
+        productLabel: `${product.sku} — ${product.name}`,
+      },
     ]);
     expect(body.data.statusHistory).toEqual([
       { fromStatus: null, toStatus: 'PENDING', reason: null, createdAt: '2026-01-01T08:00:00.000Z' },

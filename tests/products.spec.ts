@@ -39,7 +39,7 @@ test('administrator creates a product, edits it, deactivates it, and sees duplic
   await page.getByLabel('Name').fill(`${name} (edited)`);
   await page.getByRole('button', { name: 'Save changes' }).click();
 
-  await expect(page.getByText(`${name} (edited)`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: `${name} (edited)` })).toBeVisible();
 
   // --- Deactivate ---
   const confirmed = page.waitForEvent('dialog');

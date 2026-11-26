@@ -1,30 +1,20 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductsFilters } from './products-filters';
 import { DateDisplay } from '@/components/DateDisplay';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PlusIcon } from '@/components/ui/Icons';
-
-type Product = {
-  id: string;
-  sku: string;
-  name: string;
-  description: string | null;
-  price: string;
-  stock: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
+import { requireAdmin, parseSearchQuery } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { productListQuerySchema } from '@/modules/products/list-query';
+import { listProducts } from '@/modules/products/service';
 
 export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const cookieStore = await cookies();
+  await requireAdmin();
   const params = await searchParams;
   const page = Number(params.page ?? 1);
   const search = (params.search as string | undefined) ?? '';
@@ -32,36 +22,27 @@ export default async function ProductsPage({
   const sortBy = (params.sortBy as string | undefined) ?? 'createdAt';
   const sortOrder = (params.sortOrder as string | undefined) ?? 'desc';
 
-  const query = new URLSearchParams();
-  query.set('page', String(page));
-  query.set('limit', '10');
-  if (search) query.set('search', search);
-  if (isActive === 'true' || isActive === 'false') query.set('isActive', isActive);
-  query.set('sortBy', sortBy);
-  query.set('sortOrder', sortOrder);
-
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch(`http://127.0.0.1:3000/api/products?${query.toString()}`, {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  if (!res.ok) {
-    redirect('/login');
+  const parsed = parseSearchQuery(params, productListQuerySchema);
+  if (!parsed.ok) {
+    return (
+      <div>
+        <div className="page-header">
+          <h1 className="page-title">Products</h1>
+          <Link href="/products/create" className="btn btn-primary">
+            <PlusIcon style={{ width: 14, height: 14 }} />
+            Create product
+          </Link>
+        </div>
+        <div className="card card-flat">
+          <p style={{ color: 'var(--color-ink-muted)' }}>
+            The filter query is invalid. Clear the filters and try again.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  const body = (await res.json()) as {
-    success: boolean;
-    data: Product[];
-    meta: { page: number; limit: number; totalItems: number; totalPages: number };
-  };
-
-  if (!body.success) {
-    redirect('/login');
-  }
+  const { data: products, meta } = await listProducts(prisma, parsed.query);
 
   const formatMoney = (value: string) =>
     new Intl.NumberFormat('id-ID', {
@@ -87,11 +68,11 @@ export default async function ProductsPage({
           sortBy={sortBy}
           sortOrder={sortOrder}
           page={page}
-          totalPages={body.meta.totalPages}
-          totalItems={body.meta.totalItems}
+          totalPages={meta.totalPages}
+          totalItems={meta.totalItems}
         />
 
-        {body.data.length === 0 ? (
+        {products.length === 0 ? (
           <EmptyState
             title="No products found."
             subtitle={
@@ -121,7 +102,7 @@ export default async function ProductsPage({
                 </tr>
               </thead>
               <tbody>
-                {body.data.map((product) => {
+                {products.map((product) => {
                   const status: BadgeStatus = product.isActive ? 'active' : 'inactive';
                   return (
                     <tr key={product.id}>

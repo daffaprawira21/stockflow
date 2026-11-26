@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // client paint render the raw ISO string to avoid a hydration mismatch; the
 // localized value is filled in on a deferred (non-synchronous) effect tick so
 // the react-hooks/set-state-in-effect rule stays happy.
-export function DateDisplay({ value }: { value: string }) {
+export function DateDisplay({ value }: { value: string | Date }) {
   const [formatted, setFormatted] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function DateDisplay({ value }: { value: string }) {
   }, [value]);
 
   if (formatted === null) {
-    return <span>{value}</span>;
+    return <span>{String(value)}</span>;
   }
 
   return <span>{formatted}</span>;

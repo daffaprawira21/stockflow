@@ -348,7 +348,12 @@ export async function getOrderById(prisma: OrderReadClient, id: string) {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      items: { orderBy: { id: 'asc' } },
+      items: {
+        orderBy: { id: 'asc' },
+        include: {
+          product: { select: { sku: true, name: true } },
+        },
+      },
       statusHistory: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
     },
   });
