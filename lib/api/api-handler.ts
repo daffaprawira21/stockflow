@@ -37,20 +37,32 @@ export type ApiHandlerConfig = {
 };
 
 /**
+ * The admin guard as a swappable pipeline stage. The default is the real
+ * `requireAdmin` (which pulls `lib/db` inside the guard, not the pipeline);
+ * tests inject a fake to exercise the auth path without a DB.
+ */
+type AdminGuard = (request: Request) => Promise<PublicUser>;
+
+const defaultAdminGuard: AdminGuard = (request) => requireAdmin(prisma as never, request);
+
+/**
  * The deep route pipeline. One object in, one Response out.
  *
- * Owns, in order: origin check, admin guard, JSON body parse, Zod validation of
- * body/query/headers, and uniform response/error mapping. A route body reduces
- * to `apiHandler({ ... })`.
+ * Owns, in order: the state-changing-origin check, the admin guard, JSON body
+ * parse, Zod validation of body/query/headers, and uniform response/error
+ * mapping. A route body reduces to `apiHandler({ ... })`.
  *
- * The pipeline does NOT inject the Prisma client: `run` gets only the validated
- * context, and domain modules import `lib/db` themselves.
+ * The pipeline holds NO Prisma client: the guard is the single seam where the
+ * DB enters, and it is injectable so the pipeline itself stays testable.
  */
-export function apiHandler(config: ApiHandlerConfig): (request: Request) => Promise<Response> {
+export function apiHandler(
+  config: ApiHandlerConfig,
+  adminGuard: AdminGuard = defaultAdminGuard,
+): (request: Request) => Promise<Response> {
   return async (request: Request) => {
     try {
       if (config.method && request.method.toUpperCase() !== config.method.toUpperCase()) {
-        throw new ApiError('VALIDATION_ERROR', `Method ${request.method} not allowed`, undefined);
+        throw new ApiError('VALIDATION_ERROR', `Method ${request.method} not allowed`);
       }
 
       if (!isOriginAllowed(request, allowedOrigins)) {
@@ -59,7 +71,7 @@ export function apiHandler(config: ApiHandlerConfig): (request: Request) => Prom
 
       let admin: PublicUser | null = null;
       if (config.auth) {
-        admin = await requireAdmin(prisma, request);
+        admin = await adminGuard(request);
       }
 
       let headers: Record<string, string> | undefined;
