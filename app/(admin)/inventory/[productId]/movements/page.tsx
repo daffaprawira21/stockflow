@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { MovementsFilters } from './movements-filters';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { XIcon } from '@/components/ui/Icons';
 import { requireAdmin, parseSearchQuery } from '@/lib/auth/server';
@@ -108,7 +108,7 @@ export default async function StockMovementsPage({
                   const positive = movement.quantityDelta > 0;
                   return (
                     <tr key={movement.id}>
-                      <td><DateDisplay value={movement.createdAt} /></td>
+                      <td><Time value={movement.createdAt} /></td>
                       <td className="tabular-nums">{movement.movementType}</td>
                       <td
                         className="tabular-nums"

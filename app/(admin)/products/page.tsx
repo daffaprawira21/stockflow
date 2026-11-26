@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ProductsFilters } from './products-filters';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PlusIcon } from '@/components/ui/Icons';
@@ -120,7 +120,7 @@ export default async function ProductsPage({
                       <td>
                         <Badge status={status}>{product.isActive ? 'Active' : 'Inactive'}</Badge>
                       </td>
-                      <td><DateDisplay value={product.updatedAt} /></td>
+                      <td><Time value={product.updatedAt} /></td>
                       <td>
                         <Link href={`/products/${product.id}`} className="btn btn-compact">
                           View

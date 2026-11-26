@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { OrdersFilters } from './orders-filters';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PlusIcon } from '@/components/ui/Icons';
@@ -124,7 +124,7 @@ export default async function OrdersPage({
                       <td className="tabular-nums" style={{ textAlign: 'right' }}>
                         {formatMoney(order.totalAmount)}
                       </td>
-                      <td><DateDisplay value={order.createdAt} /></td>
+                      <td><Time value={order.createdAt} /></td>
                       <td>
                         <Link href={`/orders/${order.id}`} className="btn btn-compact">
                           View

@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductDetail } from './product-detail';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { XIcon } from '@/components/ui/Icons';
 import { requireAdmin } from '@/lib/auth/server';
@@ -76,10 +76,10 @@ export default async function ProductPage({
             </dd>
 
             <dt>Created</dt>
-            <dd><DateDisplay value={product.createdAt} /></dd>
+            <dd><Time value={product.createdAt} /></dd>
 
             <dt>Updated</dt>
-            <dd><DateDisplay value={product.updatedAt} /></dd>
+            <dd><Time value={product.updatedAt} /></dd>
           </dl>
         </div>
 

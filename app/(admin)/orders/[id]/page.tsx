@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrderActions } from './order-actions';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { XIcon } from '@/components/ui/Icons';
 import { requireAdmin } from '@/lib/auth/server';
@@ -151,7 +151,7 @@ export default async function OrderPage({
                           <Badge status={toMeta.status}>{entry.toStatus}</Badge>
                         </td>
                         <td>{entry.reason ?? '—'}</td>
-                        <td><DateDisplay value={entry.createdAt} /></td>
+                        <td><Time value={entry.createdAt} /></td>
                       </tr>
                     );
                   })}
@@ -177,7 +177,7 @@ export default async function OrderPage({
               </dd>
 
               <dt>Created</dt>
-              <dd><DateDisplay value={order.createdAt} /></dd>
+              <dd><Time value={order.createdAt} /></dd>
             </dl>
           </div>
 
