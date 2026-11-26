@@ -12,11 +12,11 @@ const TOGGLE = (page: import('@playwright/test').Page) =>
 // admin shell, so the switch/persist behavior is exercised on /login — no
 // session required, immune to the full-suite DB/session state.
 
-// Two toggles exist in the admin shell (mobile bar + sidebar footer); only
-// the visible one is interactive. Drive the visible control's DOM click
-// handler directly — the exact path a user's click takes (applyTheme +
-// persist to localStorage) — so the test is not blocked by the dev overlay's
-// pointer interception.
+// One toggle lives in the admin shell's sidebar footer; only the visible
+// one is interactive. Drive the visible control's DOM click handler directly
+// — the exact path a user's click takes (applyTheme + persist to
+// localStorage) — so the test is not blocked by the dev overlay's pointer
+// interception.
 async function clickToggle(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
     const target = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(

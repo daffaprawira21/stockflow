@@ -52,7 +52,8 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
         Skip to content
       </a>
 
-      {/* Mobile top bar with hamburger — visible under 900px only */}
+      {/* Mobile top bar — hamburger + brand. Theme lives in the sidebar
+          footer alongside Sign out, so it is not duplicated here. */}
       <div className="mobile-bar">
         <button
           type="button"
@@ -75,9 +76,8 @@ export function MobileShell({ userEmail, children }: MobileShellProps) {
           </svg>
         </button>
         <div className="mobile-bar-brand" aria-hidden>
-          <Logo style={{ width: 28, height: 28 }} />
+          <Logo style={{ width: 32, height: 32 }} />
         </div>
-        <ThemeToggle />
       </div>
 
       <div className="shell">
