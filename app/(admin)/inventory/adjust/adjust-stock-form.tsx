@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useId, useState, useEffect, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 type Product = {
@@ -36,9 +37,13 @@ export function AdjustStockForm() {
   const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT'>('ADJUSTMENT_IN');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
-  const [pending, setPending] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const { mutate, pending, error: submitError } = useApiMutation({
+    url: '/api/inventory/adjustments',
+    errorMessage,
+    onSuccess: () => router.push('/inventory'),
+  });
 
   function loadProducts() {
     if (products || productsLoading) return;
@@ -100,34 +105,15 @@ export function AdjustStockForm() {
     }
 
     setValidationError(null);
-    setPending(true);
-    setSubmitError(null);
 
-    try {
-      const response = await fetch('/api/inventory/adjustments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId,
-          type,
-          quantity: Number(quantity),
-          reason: reason.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setSubmitError(errorMessage(body));
-        return;
-      }
-
-      router.refresh();
-      router.push('/inventory');
-    } catch {
-      setSubmitError('Network error. Please try again.');
-    } finally {
-      setPending(false);
-    }
+    await mutate({
+      body: {
+        productId,
+        type,
+        quantity: Number(quantity),
+        reason: reason.trim(),
+      },
+    });
   }
 
   return (

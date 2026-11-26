@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
@@ -22,39 +22,22 @@ type OrderActionsProps = {
 };
 
 export function OrderActions({ id, status }: OrderActionsProps) {
-  const router = useRouter();
   const inputId = useId();
   const [cancelReason, setCancelReason] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const canConfirm = status === 'PENDING';
   const canCancel = status === 'PENDING' || status === 'CONFIRMED';
   const canShip = status === 'CONFIRMED';
 
+  const { mutate, pending, error, setError } = useApiMutation({
+    errorMessage,
+  });
+
   async function post(path: string, body?: Record<string, string>) {
-    setPending(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/orders/${id}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-
-      if (!response.ok) {
-        const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(parsed));
-        return;
-      }
-
-      router.refresh();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setPending(false);
-    }
+    await mutate({
+      url: `/api/orders/${id}${path}`,
+      body,
+    });
   }
 
   function handleCancel(event: FormEvent<HTMLFormElement>) {

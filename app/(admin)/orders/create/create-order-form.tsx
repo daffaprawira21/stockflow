@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, PlusIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 type Product = {
@@ -39,9 +40,12 @@ export function CreateOrderForm() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([{ productId: '', quantity: '' }]);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const { mutate, pending, error } = useApiMutation<{ id: string }>({
+    url: '/api/orders',
+    errorMessage,
+  });
 
   function loadProducts() {
     if (products || productsLoading) return;
@@ -101,44 +105,23 @@ export function CreateOrderForm() {
     }
 
     setValidationError(null);
-    setError(null);
-    setPending(true);
 
-    try {
-      const items: OrderItemInput[] = rows.map((row) => ({
-        productId: row.productId,
-        quantity: Number(row.quantity),
-      }));
+    const items: OrderItemInput[] = rows.map((row) => ({
+      productId: row.productId,
+      quantity: Number(row.quantity),
+    }));
 
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ items }),
-      });
+    const result = await mutate({
+      headers: {
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: { items },
+    });
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(body));
-        return;
-      }
-
-      const created = (await response.json()) as {
-        success: boolean;
-        data: { id: string };
-      };
-
-      if (created.success && created.data?.id) {
-        router.push(`/orders/${created.data.id}`);
-      } else {
-        router.push('/orders');
-      }
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setPending(false);
+    if (result.ok && result.data?.id) {
+      router.push(`/orders/${result.data.id}`);
+    } else if (result.ok) {
+      router.push('/orders');
     }
   }
 
