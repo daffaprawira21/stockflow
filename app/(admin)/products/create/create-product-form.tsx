@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, SpinnerIcon, XIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
@@ -20,40 +21,24 @@ export function CreateProductForm() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [initialStock, setInitialStock] = useState('0');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { mutate, pending, error } = useApiMutation({
+    url: '/api/products',
+    errorMessage,
+    onSuccess: () => router.push('/products'),
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sku,
-          name,
-          description: description || undefined,
-          price,
-          initialStock: Number(initialStock),
-        }),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(body));
-        return;
-      }
-
-      router.refresh();
-      router.push('/products');
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setPending(false);
-    }
+    await mutate({
+      body: {
+        sku,
+        name,
+        description: description || undefined,
+        price,
+        initialStock: Number(initialStock),
+      },
+    });
   }
 
   return (

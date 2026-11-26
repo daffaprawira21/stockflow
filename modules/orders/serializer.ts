@@ -19,7 +19,13 @@ export function serializeOrderListItem(order: OrderListRecord) {
 
 type OrderDetailRecord = Prisma.OrderGetPayload<{
   include: {
-    items: true;
+    items: {
+      include: {
+        product: {
+          select: { sku: true; name: true };
+        };
+      };
+    };
     statusHistory: true;
   };
 }>;
@@ -121,6 +127,9 @@ export function serializeOrderDetail(order: OrderDetailRecord) {
       quantity: item.quantity,
       unitPrice: toMoneyString(item.unitPrice),
       subtotal: toMoneyString(item.subtotal),
+      // Product names enriched in the same query as the order detail, so the
+      // page no longer fires a per-item product fetch.
+      productLabel: item.product ? `${item.product.sku} — ${item.product.name}` : undefined,
     })),
     statusHistory: order.statusHistory.map((history) => ({
       fromStatus: history.fromStatus,

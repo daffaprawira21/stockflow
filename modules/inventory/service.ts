@@ -1,13 +1,17 @@
 import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
+import {
+  consolidateStockItems,
+  MAX_STOCK_QUANTITY,
+  type ConsolidatedStockItem,
+} from './consolidate';
 import type { AdjustInventoryInput, InventoryListQuery, StockMovementQuery } from './schemas';
 import { serializeInventoryItem, serializeStockAdjustment, serializeStockMovement } from './serializer';
 import type { StockMovementType } from './types';
 
 type InventoryTransaction = Pick<Prisma.TransactionClient, 'stockMovement'>;
 
-const MAX_POSTGRES_INTEGER = 2_147_483_647;
 
 type OrderConfirmationTransaction = Pick<
   Prisma.TransactionClient,
@@ -20,15 +24,10 @@ type InitialStockMovement = {
   quantity: number;
 };
 
-type OrderStockItem = {
-  productId: string;
-  quantity: number;
-};
-
 type OrderStockDeduction = {
   orderId: string;
   performedBy: string;
-  items: OrderStockItem[];
+  items: ConsolidatedStockItem[];
 };
 
 type LockedProductStock = {
@@ -142,7 +141,7 @@ export async function adjustInventory(
 
     const delta = input.type === 'ADJUSTMENT_IN' ? input.quantity : -input.quantity;
     const quantityAfter = product.stock + delta;
-    if (quantityAfter < 0 || quantityAfter > MAX_POSTGRES_INTEGER) {
+    if (quantityAfter < 0 || quantityAfter > MAX_STOCK_QUANTITY) {
       throw new ApiError('INVALID_ADJUSTMENT');
     }
 
@@ -206,21 +205,11 @@ async function lockProductStocks(
   `;
 }
 
-function consolidateOrderStockItems(items: OrderStockItem[]): OrderStockItem[] {
-  const quantities = new Map<string, number>();
-  for (const item of items) {
-    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
-  }
-  return [...quantities.entries()]
-    .map(([productId, quantity]) => ({ productId, quantity }))
-    .sort((left, right) => left.productId.localeCompare(right.productId));
-}
-
 export async function restoreStockForOrder(
   tx: OrderConfirmationTransaction,
   restoration: OrderStockDeduction,
 ): Promise<void> {
-  const items = consolidateOrderStockItems(restoration.items);
+  const items = consolidateStockItems(restoration.items);
   const locked = await lockProductStocks(
     tx,
     items.map((item) => item.productId),
@@ -234,7 +223,7 @@ export async function restoreStockForOrder(
     }
 
     const quantityAfter = product.stock + item.quantity;
-    if (quantityAfter > MAX_POSTGRES_INTEGER) {
+    if (quantityAfter > MAX_STOCK_QUANTITY) {
       throw new ApiError('INVALID_ORDER_STATE', 'Stock restoration exceeds the allowed maximum');
     }
     await tx.product.update({
@@ -259,7 +248,7 @@ export async function deductStockForOrder(
   tx: OrderConfirmationTransaction,
   deduction: OrderStockDeduction,
 ): Promise<void> {
-  const items = consolidateOrderStockItems(deduction.items);
+  const items = consolidateStockItems(deduction.items);
   const locked = await lockProductStocks(
     tx,
     items.map((item) => item.productId),

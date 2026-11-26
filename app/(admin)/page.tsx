@@ -1,5 +1,3 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
@@ -11,17 +9,9 @@ import {
   PlusIcon,
   ArrowUpIcon,
 } from '@/components/ui/Icons';
-
-type SummaryValue = {
-  totalProducts: number;
-  activeProducts: number;
-  totalOrders: number;
-  pendingOrders: number;
-  confirmedOrders: number;
-  shippedOrders: number;
-  cancelledOrders: number;
-  totalInventoryUnits: number;
-};
+import { requireAdmin } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { getDashboardSummary } from '@/modules/dashboard/service';
 
 const STATUS_META: Record<string, { status: BadgeStatus; label: string; href: string }> = {
   PENDING: { status: 'pending', label: 'Pending', href: '/orders?status=PENDING' },
@@ -31,31 +21,10 @@ const STATUS_META: Record<string, { status: BadgeStatus; label: string; href: st
 };
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch('http://127.0.0.1:3000/api/dashboard/summary', {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  if (!res.ok) {
-    redirect('/login');
-  }
-
-  const body = (await res.json()) as {
-    success: boolean;
-    data: SummaryValue;
-  };
-
-  if (!body.success) {
-    redirect('/login');
-  }
-
-  const s = body.data;
+  // Validate the session in-process; the admin layout already gates the group,
+  // this keeps the read path free of any localhost loopback fetch.
+  await requireAdmin();
+  const s = await getDashboardSummary(prisma);
 
   const pipeline = [
     { key: 'PENDING', value: s.pendingOrders },

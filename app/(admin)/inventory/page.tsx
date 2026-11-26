@@ -1,58 +1,45 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InventoryFilters } from './inventory-filters';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ArrowUpIcon, PlusIcon } from '@/components/ui/Icons';
-
-type InventoryItem = {
-  productId: string;
-  sku: string;
-  productName: string;
-  stock: number;
-  isActive: boolean;
-};
+import { requireAdmin, parseSearchQuery } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { inventoryListQuerySchema } from '@/modules/inventory/schemas';
+import { listInventory } from '@/modules/inventory/service';
 
 export default async function InventoryPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const cookieStore = await cookies();
+  await requireAdmin();
   const params = await searchParams;
   const page = Number(params.page ?? 1);
   const search = (params.search as string | undefined) ?? '';
   const lowStock = params.lowStock as string | undefined;
 
-  const query = new URLSearchParams();
-  query.set('page', String(page));
-  query.set('limit', '10');
-  if (search) query.set('search', search);
-  if (lowStock !== undefined) query.set('lowStock', lowStock);
-
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch(`http://127.0.0.1:3000/api/inventory?${query.toString()}`, {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  if (!res.ok) {
-    redirect('/login');
+  const parsed = parseSearchQuery(params, inventoryListQuerySchema);
+  if (!parsed.ok) {
+    return (
+      <div>
+        <div className="page-header">
+          <h1 className="page-title">Inventory</h1>
+          <Link href="/inventory/adjust" className="btn btn-primary">
+            <ArrowUpIcon style={{ width: 14, height: 14 }} />
+            Adjust stock
+          </Link>
+        </div>
+        <div className="card card-flat">
+          <p style={{ color: 'var(--color-ink-muted)' }}>
+            The filter query is invalid. Clear the filters and try again.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  const body = (await res.json()) as {
-    success: boolean;
-    data: InventoryItem[];
-    meta: { page: number; limit: number; totalItems: number; totalPages: number };
-  };
-
-  if (!body.success) {
-    redirect('/login');
-  }
+  const { data: items, meta } = await listInventory(prisma, parsed.query);
 
   return (
     <div>
@@ -69,11 +56,11 @@ export default async function InventoryPage({
           search={search}
           lowStock={lowStock ?? ''}
           page={page}
-          totalPages={body.meta.totalPages}
-          totalItems={body.meta.totalItems}
+          totalPages={meta.totalPages}
+          totalItems={meta.totalItems}
         />
 
-        {body.data.length === 0 ? (
+        {items.length === 0 ? (
           <EmptyState
             title="No inventory items found."
             subtitle={
@@ -102,7 +89,7 @@ export default async function InventoryPage({
                 </tr>
               </thead>
               <tbody>
-                {body.data.map((item) => {
+                {items.map((item) => {
                   const status: BadgeStatus = item.isActive ? 'active' : 'inactive';
                   const low = item.stock <= 5;
                   return (

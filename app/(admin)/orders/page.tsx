@@ -1,19 +1,13 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrdersFilters } from './orders-filters';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PlusIcon } from '@/components/ui/Icons';
-
-type OrderSummary = {
-  id: string;
-  orderNumber: string;
-  status: string;
-  totalAmount: string;
-  createdAt: string;
-};
+import { requireAdmin, parseSearchQuery } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { orderListQuerySchema } from '@/modules/orders/schemas';
+import { listOrders } from '@/modules/orders/service';
 
 const STATUS_META: Record<string, { status: BadgeStatus; label: string }> = {
   PENDING: { status: 'pending', label: 'Pending' },
@@ -27,34 +21,19 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const cookieStore = await cookies();
+  await requireAdmin();
   const params = await searchParams;
+
   const page = Number(params.page ?? 1);
   const status = params.status as string | undefined;
   const search = (params.search as string | undefined) ?? '';
   const sortBy = (params.sortBy as string | undefined) ?? 'createdAt';
   const sortOrder = (params.sortOrder as string | undefined) ?? 'desc';
 
-  const query = new URLSearchParams();
-  query.set('page', String(page));
-  query.set('limit', '10');
-  if (status) query.set('status', status);
-  if (search) query.set('search', search);
-  query.set('sortBy', sortBy);
-  query.set('sortOrder', sortOrder);
-
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch(`http://127.0.0.1:3000/api/orders?${query.toString()}`, {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  // 400/422 are query-param validation errors (bad sortBy/status, etc.);
-  // show an empty table rather than redirecting to login.
-  if (res.status === 400 || res.status === 422) {
+  // The domain module owns the query shape; an invalid query renders the
+  // "clear the filters" state rather than a login redirect.
+  const parsed = parseSearchQuery(params, orderListQuerySchema);
+  if (!parsed.ok) {
     return (
       <div>
         <div className="page-header">
@@ -73,19 +52,7 @@ export default async function OrdersPage({
     );
   }
 
-  if (!res.ok) {
-    redirect('/login');
-  }
-
-  const body = (await res.json()) as {
-    success: boolean;
-    data: OrderSummary[];
-    meta: { page: number; limit: number; totalItems: number; totalPages: number };
-  };
-
-  if (!body.success) {
-    redirect('/login');
-  }
+  const { data: orders, meta } = await listOrders(prisma, parsed.query);
 
   const formatMoney = (value: string) =>
     new Intl.NumberFormat('id-ID', {
@@ -111,11 +78,11 @@ export default async function OrdersPage({
           sortBy={sortBy}
           sortOrder={sortOrder}
           page={page}
-          totalPages={body.meta.totalPages}
-          totalItems={body.meta.totalItems}
+          totalPages={meta.totalPages}
+          totalItems={meta.totalItems}
         />
 
-        {body.data.length === 0 ? (
+        {orders.length === 0 ? (
           <EmptyState
             title="No orders found."
             subtitle={
@@ -143,8 +110,8 @@ export default async function OrdersPage({
                 </tr>
               </thead>
               <tbody>
-                {body.data.map((order) => {
-                  const meta = STATUS_META[order.status] ?? {
+                {orders.map((order) => {
+                  const meta2 = STATUS_META[order.status] ?? {
                     status: 'inactive' as BadgeStatus,
                     label: order.status,
                   };
@@ -152,12 +119,12 @@ export default async function OrdersPage({
                     <tr key={order.id}>
                       <td className="tabular-nums">{order.orderNumber}</td>
                       <td>
-                        <Badge status={meta.status}>{meta.label}</Badge>
+                        <Badge status={meta2.status}>{meta2.label}</Badge>
                       </td>
                       <td className="tabular-nums" style={{ textAlign: 'right' }}>
                         {formatMoney(order.totalAmount)}
                       </td>
-                      <td><DateDisplay value={order.createdAt} /></td>
+                      <td><Time value={order.createdAt} /></td>
                       <td>
                         <Link href={`/orders/${order.id}`} className="btn btn-compact">
                           View

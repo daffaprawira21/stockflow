@@ -1,33 +1,16 @@
-import { ApiError } from '@/lib/api/errors';
-import { requireAdmin } from '@/lib/api/guard';
-import { isOriginAllowed } from '@/lib/api/origin';
-import { jsonFromError, jsonSuccess } from '@/lib/api/response';
-import { validationDetails } from '@/lib/api/validation';
+import { apiHandler } from '@/lib/api/api-handler';
 import prisma from '@/lib/db';
-import { allowedOrigins } from '@/lib/env';
-import { deactivateProduct } from '@/modules/products/service';
 import { z } from 'zod';
+import { deactivateProduct } from '@/modules/products/service';
 
 const productIdSchema = z.uuid();
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  try {
-    if (!isOriginAllowed(request, allowedOrigins)) {
-      throw new ApiError('FORBIDDEN');
-    }
-
-    await requireAdmin(prisma, request);
-    const { id } = await context.params;
-    const parsedId = productIdSchema.safeParse(id);
-    if (!parsedId.success) {
-      throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsedId.error));
-    }
-
-    return jsonSuccess(await deactivateProduct(prisma, parsedId.data));
-  } catch (error) {
-    return jsonFromError(error);
-  }
-}
+export const PATCH = apiHandler({
+  method: 'PATCH',
+  auth: true,
+  param: { name: 'id', schema: productIdSchema },
+  run: async (ctx) => {
+    const result = await deactivateProduct(prisma, ctx.param as string);
+    return { data: result };
+  },
+}).handler;

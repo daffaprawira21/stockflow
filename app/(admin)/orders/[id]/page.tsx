@@ -1,23 +1,27 @@
-import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { OrderActions } from './order-actions';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { XIcon } from '@/components/ui/Icons';
+import { requireAdmin } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { getOrderById } from '@/modules/orders/service';
+import { ApiError } from '@/lib/api/errors';
 
 type OrderItem = {
   productId: string;
   quantity: number;
   unitPrice: string;
   subtotal: string;
+  productLabel?: string;
 };
 
 type StatusHistoryEntry = {
-  fromStatus: string;
+  fromStatus: string | null;
   toStatus: string;
   reason: string | null;
-  createdAt: string;
+  createdAt: Date;
 };
 
 type OrderDetail = {
@@ -27,7 +31,7 @@ type OrderDetail = {
   totalAmount: string;
   items: OrderItem[];
   statusHistory: StatusHistoryEntry[];
-  createdAt: string;
+  createdAt: Date;
 };
 
 const STATUS_META: Record<string, { status: BadgeStatus }> = {
@@ -42,62 +46,17 @@ export default async function OrderPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const cookieStore = await cookies();
+  await requireAdmin();
   const { id } = await params;
 
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch(`http://127.0.0.1:3000/api/orders/${id}`, {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  if (res.status === 404) {
-    notFound();
-  }
-
-  if (!res.ok) {
-    redirect('/login');
-  }
-
-  const body = (await res.json()) as {
-    success: boolean;
-    data: OrderDetail;
-  };
-
-  if (!body.success) {
-    notFound();
-  }
-
-  const order = body.data;
-
-  // Fetch product names for the items table (best-effort; fall back to UUID on failure).
-  const productIds = [...new Set(order.items.map((item) => item.productId))];
-  const productRefs = new Map<string, string>();
-  if (productIds.length > 0) {
-    try {
-      // ponytail: batch lookup via individual fetches; a products/batch endpoint
-      // or a richer order-detail serializer would replace this.
-      const results = await Promise.all(
-        productIds.map(async (productId) => {
-          const pRes = await fetch(`http://127.0.0.1:3000/api/products/${productId}`, {
-            cache: 'no-store',
-            headers: { cookie: cookieStore.toString() },
-          });
-          if (!pRes.ok) return [productId, ''] as const;
-          const pBody = (await pRes.json()) as { success: boolean; data?: { sku: string; name: string } };
-          if (!pBody.success || !pBody.data) return [productId, ''] as const;
-          return [productId, `${pBody.data.sku} — ${pBody.data.name}`] as const;
-        }),
-      );
-      results.forEach(([productId, ref]) => {
-        if (ref !== '') productRefs.set(productId, ref);
-      });
-    } catch {
-      // Non-fatal: show raw product IDs if the lookup fails.
+  let order: OrderDetail;
+  try {
+    order = await getOrderById(prisma, id);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'RESOURCE_NOT_FOUND') {
+      notFound();
     }
+    redirect('/login');
   }
 
   const formatMoney = (value: string) =>
@@ -148,7 +107,9 @@ export default async function OrderPage({
                 <tbody>
                   {order.items.map((item) => (
                     <tr key={item.productId}>
-                      <td>{productRefs.get(item.productId) ?? item.productId}</td>
+                      {/* Product name enriched in the order-detail query; fall
+                          back to the raw UUID only if the product is gone. */}
+                      <td>{item.productLabel ?? item.productId}</td>
                       <td className="tabular-nums" style={{ textAlign: 'right' }}>
                         {item.quantity}
                       </td>
@@ -190,7 +151,7 @@ export default async function OrderPage({
                           <Badge status={toMeta.status}>{entry.toStatus}</Badge>
                         </td>
                         <td>{entry.reason ?? '—'}</td>
-                        <td><DateDisplay value={entry.createdAt} /></td>
+                        <td><Time value={entry.createdAt} /></td>
                       </tr>
                     );
                   })}
@@ -216,7 +177,7 @@ export default async function OrderPage({
               </dd>
 
               <dt>Created</dt>
-              <dd><DateDisplay value={order.createdAt} /></dd>
+              <dd><Time value={order.createdAt} /></dd>
             </dl>
           </div>
 

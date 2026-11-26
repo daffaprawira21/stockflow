@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '../../lib/generated/prisma/client';
 import { ApiError } from '../../lib/api/errors';
 import { paginationMeta } from '../../lib/api/response';
+import { consolidateStockItems } from '../inventory/consolidate';
 import { deductStockForOrder, restoreStockForOrder } from '../inventory/service';
 import type { CreateOrderInput, OrderListQuery } from './schemas';
 import {
@@ -29,21 +30,7 @@ export type CreateOrderResult = {
 
 const CREATE_ORDER_OPERATION = 'CREATE_ORDER';
 
-const MAX_POSTGRES_INTEGER = 2_147_483_647;
-
-function consolidateItems(items: CreateOrderInput['items']) {
-  const quantities = new Map<string, number>();
-  for (const item of items) {
-    const quantity = (quantities.get(item.productId) ?? 0) + item.quantity;
-    if (quantity > MAX_POSTGRES_INTEGER) {
-      throw new ApiError('VALIDATION_ERROR', 'Consolidated item quantity exceeds the allowed maximum');
-    }
-    quantities.set(item.productId, quantity);
-  }
-  return [...quantities.entries()].map(([productId, quantity]) => ({ productId, quantity }));
-}
-
-function requestHash(items: ReturnType<typeof consolidateItems>): string {
+function requestHash(items: ReturnType<typeof consolidateStockItems>): string {
   const canonicalItems = [...items].sort((left, right) =>
     left.productId.localeCompare(right.productId),
   );
@@ -84,7 +71,7 @@ export async function createOrder(
   idempotencyKey: string,
   input: CreateOrderInput,
 ): Promise<CreateOrderResult> {
-  const items = consolidateItems(input.items);
+  const items = consolidateStockItems(input.items);
   const hash = requestHash(items);
 
   return prisma.$transaction(async (tx) => {
@@ -361,7 +348,12 @@ export async function getOrderById(prisma: OrderReadClient, id: string) {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      items: { orderBy: { id: 'asc' } },
+      items: {
+        orderBy: { id: 'asc' },
+        include: {
+          product: { select: { sku: true, name: true } },
+        },
+      },
       statusHistory: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
     },
   });

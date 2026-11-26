@@ -1,58 +1,31 @@
-import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ProductDetail } from './product-detail';
-import { DateDisplay } from '@/components/DateDisplay';
+import { Time } from '@/components/Time';
 import { Badge, type BadgeStatus } from '@/components/ui/Badge';
 import { XIcon } from '@/components/ui/Icons';
-
-type ProductDetail = {
-  id: string;
-  sku: string;
-  name: string;
-  description: string | null;
-  price: string;
-  stock: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
+import { requireAdmin } from '@/lib/auth/server';
+import prisma from '@/lib/db';
+import { getProductById } from '@/modules/products/service';
+import { ApiError } from '@/lib/api/errors';
 
 export default async function ProductPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const cookieStore = await cookies();
+  await requireAdmin();
   const { id } = await params;
 
-  // Same-origin loopback fetch: in Next 16 the `fetch` inside a server
-  // component does not forward cookies, so the session cookie is attached
-  // explicitly. Absolute localhost URL keeps the request on the same host
-  // regardless of the port the dev server runs on.
-  const res = await fetch(`http://127.0.0.1:3000/api/products/${id}`, {
-    cache: 'no-store',
-    headers: { cookie: cookieStore.toString() },
-  });
-
-  if (res.status === 404) {
-    notFound();
-  }
-
-  if (!res.ok) {
+  let product;
+  try {
+    product = await getProductById(prisma, id);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'RESOURCE_NOT_FOUND') {
+      notFound();
+    }
     redirect('/login');
   }
-
-  const body = (await res.json()) as {
-    success: boolean;
-    data: ProductDetail;
-  };
-
-  if (!body.success) {
-    notFound();
-  }
-
-  const product = body.data;
 
   const formatMoney = (value: string) =>
     new Intl.NumberFormat('id-ID', {
@@ -103,10 +76,10 @@ export default async function ProductPage({
             </dd>
 
             <dt>Created</dt>
-            <dd><DateDisplay value={product.createdAt} /></dd>
+            <dd><Time value={product.createdAt} /></dd>
 
             <dt>Updated</dt>
-            <dd><DateDisplay value={product.updatedAt} /></dd>
+            <dd><Time value={product.updatedAt} /></dd>
           </dl>
         </div>
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
@@ -22,50 +22,37 @@ type OrderActionsProps = {
 };
 
 export function OrderActions({ id, status }: OrderActionsProps) {
-  const router = useRouter();
   const inputId = useId();
   const [cancelReason, setCancelReason] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const canConfirm = status === 'PENDING';
   const canCancel = status === 'PENDING' || status === 'CONFIRMED';
   const canShip = status === 'CONFIRMED';
 
+  const { mutate, pending, error: apiError } = useApiMutation({
+    errorMessage,
+  });
+
   async function post(path: string, body?: Record<string, string>) {
-    setPending(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/orders/${id}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-
-      if (!response.ok) {
-        const parsed = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(parsed));
-        return;
-      }
-
-      router.refresh();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setPending(false);
-    }
+    setValidationError(null);
+    await mutate({
+      url: `/api/orders/${id}${path}`,
+      body,
+    });
   }
 
   function handleCancel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const reason = cancelReason.trim();
     if (reason === '') {
-      setError('A cancellation reason is required.');
+      setValidationError('A cancellation reason is required.');
       return;
     }
     void post('/cancel', { reason });
   }
+
+  const error = apiError ?? validationError;
 
   return (
     <div>

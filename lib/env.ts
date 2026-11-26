@@ -18,6 +18,11 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
+  /**
+   * IANA timezone used for deterministic date rendering on the server.
+   * Defaults to Asia/Jakarta (WIB) to match the id-IDR currency context.
+   */
+  TZ: z.string().min(1).default('Asia/Jakarta'),
 });
 
 export type Env = z.infer<typeof envSchema>;

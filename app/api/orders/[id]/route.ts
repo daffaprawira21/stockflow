@@ -1,26 +1,14 @@
-import { ApiError } from '@/lib/api/errors';
-import { requireAdmin } from '@/lib/api/guard';
-import { jsonFromError, jsonSuccess } from '@/lib/api/response';
-import { validationDetails } from '@/lib/api/validation';
+import { apiHandler } from '@/lib/api/api-handler';
 import prisma from '@/lib/db';
 import { orderIdSchema } from '@/modules/orders/schemas';
 import { getOrderById } from '@/modules/orders/service';
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  try {
-    await requireAdmin(prisma, request);
-
-    const { id } = await context.params;
-    const parsedId = orderIdSchema.safeParse(id);
-    if (!parsedId.success) {
-      throw new ApiError('VALIDATION_ERROR', undefined, validationDetails(parsedId.error));
-    }
-
-    return jsonSuccess(await getOrderById(prisma, parsedId.data));
-  } catch (error) {
-    return jsonFromError(error);
-  }
-}
+export const GET = apiHandler({
+  method: 'GET',
+  auth: true,
+  param: { name: 'id', schema: orderIdSchema },
+  run: async (ctx) => {
+    const order = await getOrderById(prisma, ctx.param!);
+    return { data: order };
+  },
+}).handler;

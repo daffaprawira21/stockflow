@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { sharedErrorMessage, type ApiErrorBody } from '@/lib/api-error';
+import { useApiMutation } from '@/lib/use-api-mutation';
 import { AlertIcon, SpinnerIcon } from '@/components/ui/Icons';
 
 function errorMessage(body: ApiErrorBody | null): string {
@@ -18,14 +18,38 @@ type ProductDetailProps = {
 };
 
 export function ProductDetail({ id, isActive }: ProductDetailProps) {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [editMode, setEditMode] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const {
+    mutate: mutateDeactivate,
+    pending: deactivating,
+    error: deactivateError,
+  } = useApiMutation({
+    url: `/api/products/${id}/deactivate`,
+    method: 'PATCH',
+    errorMessage,
+  });
+
+  const {
+    mutate: mutateEdit,
+    pending: saving,
+    error: editError,
+  } = useApiMutation({
+    url: `/api/products/${id}`,
+    method: 'PATCH',
+    errorMessage,
+    onSuccess: () => {
+      setEditMode(false);
+      setName('');
+      setDescription('');
+      setPrice('');
+      setLocalError(null);
+    },
+  });
 
   async function handleDeactivate() {
     if (!isActive) return;
@@ -35,68 +59,28 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
     );
     if (!confirmed) return;
 
-    setDeactivating(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/products/${id}/deactivate`, {
-        method: 'PATCH',
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(body));
-        return;
-      }
-
-      router.refresh();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setDeactivating(false);
-    }
+    setLocalError(null);
+    await mutateDeactivate();
   }
 
   async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
-    setError(null);
 
-    try {
-      const payload: Record<string, string> = {};
-      if (name.trim()) payload.name = name.trim();
-      if (description !== '') payload.description = description;
-      if (price.trim()) payload.price = price.trim();
+    const payload: Record<string, string> = {};
+    if (name.trim()) payload.name = name.trim();
+    if (description !== '') payload.description = description;
+    if (price.trim()) payload.price = price.trim();
 
-      if (Object.keys(payload).length === 0) {
-        setError('No changes to save.');
-        setSaving(false);
-        return;
-      }
-
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-        setError(errorMessage(body));
-        return;
-      }
-
-      setEditMode(false);
-      setName('');
-      setDescription('');
-      setPrice('');
-      router.refresh();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setSaving(false);
+    if (Object.keys(payload).length === 0) {
+      setLocalError('No changes to save.');
+      return;
     }
+
+    setLocalError(null);
+    await mutateEdit({ body: payload });
   }
+
+  const error = localError ?? editError ?? deactivateError;
 
   return (
     <div>
@@ -161,7 +145,7 @@ export function ProductDetail({ id, isActive }: ProductDetailProps) {
                 setName('');
                 setDescription('');
                 setPrice('');
-                setError(null);
+                setLocalError(null);
               }}
             >
               Cancel
