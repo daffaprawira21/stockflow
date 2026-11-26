@@ -30,8 +30,8 @@ source of truth.
   comment updated to "Theme lives in the sidebar footer alongside Sign out."
 - `tests/theme-toggle.spec.ts`: comment updated — no longer claims "two toggles
   (mobile bar + sidebar footer)."
-- `app/globals.css`: removed the dead `@media (max-width: 899px)` 44px override on
-  `.theme-toggle`; base 36px rule now applies inside the drawer.
+- `app/globals.css`: `.theme-toggle` base rule now applies inside the drawer
+  with no media-query override.
 
 ### 3. Page titles glued to the mobile top bar — added breathing room
 
@@ -41,8 +41,11 @@ against the sticky `.mobile-bar` (68px tall). On a task surface the title reads 
 
 - `app/globals.css` `@media (max-width: 899px)`: `.main { padding: 24px; padding-top: 16px; }`
 - `app/globals.css` `@media (max-width: 599px)`: `.main { padding: 16px; padding-top: 12px; }`
-- `app/globals.css` `@media (min-width: 600px) and (max-width: 899px)`: removed the
-  `padding-top: 0` override so the base 24px applies on tablet.
+- `app/globals.css` `@media (min-width: 600px) and (max-width: 899px)`: sets
+  `.main { padding: 24px; }` so tablet uses the 24px padding scale.
+  *Note: this rule pre-dates PR #19; it was already present in the codebase before
+  this spec was written. The spec's "Files touched" split is historical, not
+  authoritative for attribution.*
 
 ### 4. Mobile bar logo too small next to the hamburger — 28px → 32px
 
@@ -103,10 +106,19 @@ themes without a new color) plus the darker border carried from hover.
 
 ## Files touched
 
+PR #19 (this spec scope):
 - `app/(admin)/page.tsx`
 - `app/(admin)/mobile-shell.tsx`
 - `app/globals.css`
 - `tests/theme-toggle.spec.ts`
+- `.scratch/mobile-shell-ux-polish/spec.md`
+
+PR #18 (theme toggle feature, in the same diff range `5f35b27...HEAD`):
+- `DESIGN.md`
+- `app/(admin)/theme-toggle.tsx`
+- `app/(auth)/login/page.tsx`
+- `app/layout.tsx`
+- `components/ui/Icons.tsx`
 
 ## Open notes
 

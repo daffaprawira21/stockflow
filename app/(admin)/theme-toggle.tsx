@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { MoonIcon, SunIcon } from '@/components/ui/Icons';
-
-type Theme = 'light' | 'dark';
-const STORAGE_KEY = 'sf_theme';
+import { THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
 
 function getStoredTheme(): Theme | null {
   try {
-    const value = window.localStorage.getItem(STORAGE_KEY);
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
     return value === 'light' || value === 'dark' ? value : null;
   } catch {
     return null;
@@ -58,7 +56,7 @@ export function ThemeToggle() {
     applyTheme(next);
     setTheme(next);
     try {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
       // Storage may be unavailable (private mode); the toggle still works for the session.
     }
