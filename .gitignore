@@ -33,3 +33,4 @@ reports/
 .github/agents/
 .github/hooks/
 .github/skills/
+.env.build
