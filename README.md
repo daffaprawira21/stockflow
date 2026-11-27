@@ -45,7 +45,7 @@ npm run db:deploy
 npm run db:seed
 ```
 
-The seeded administrator is `admin@example.com` / `local-development-password` (values from `.env`).
+The seeded administrator is `admin@example.com` / `admin_123456` (values from `.env`).
 
 ### Run the development server
 
