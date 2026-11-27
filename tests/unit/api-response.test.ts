@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, ERROR_STATUS } from '../../lib/api/errors';
 import {
   errorBody,
@@ -6,10 +6,15 @@ import {
   jsonFromError,
   jsonPaginated,
   jsonSuccess,
+  logUnexpectedError,
   paginatedBody,
   paginationMeta,
   successBody,
 } from '../../lib/api/response';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('response envelope', () => {
   it('wraps a single resource with null meta', () => {
@@ -83,14 +88,46 @@ describe('error mapping', () => {
   });
 
   it('maps unknown errors to a generic 500 without leaking details', async () => {
-    const response = jsonFromError(
-      new Error('connect ECONNREFUSED postgres://user:secret@localhost'),
-    );
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = jsonFromError(
+        new Error('connect ECONNREFUSED postgres://user:secret@localhost'),
+      );
 
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.error.code).toBe('INTERNAL_SERVER_ERROR');
-    expect(JSON.stringify(body)).not.toContain('secret');
-    expect(JSON.stringify(body)).not.toContain('ECONNREFUSED');
+      expect(response.status).toBe(500);
+      const body = await response.json();
+      expect(body.error.code).toBe('INTERNAL_SERVER_ERROR');
+      expect(JSON.stringify(body)).not.toContain('secret');
+      expect(JSON.stringify(body)).not.toContain('ECONNREFUSED');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it('logs unexpected errors with credentials redacted from the message', () => {
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let logged: unknown;
+    try {
+      const err = new Error('connect ECONNREFUSED postgres://user:secret@localhost:5432/db');
+      err.stack = 'Error: connect ECONNREFUSED postgres://user:secret@localhost:5432/db\n    at route';
+      logUnexpectedError(err, { route: '/api/orders' });
+      logged = logSpy.mock.calls[0]?.[0];
+    } finally {
+      logSpy.mockRestore();
+    }
+
+    const json = JSON.parse(logged as string) as {
+      kind: string;
+      route: string;
+      error: { name: string; message: string; stack: string };
+      timestamp: string;
+    };
+    expect(json.kind).toBe('unexpected-error');
+    expect(json.route).toBe('/api/orders');
+    expect(json.error.name).toBe('Error');
+    expect(json.error.message).toContain('postgres://[redacted]@localhost');
+    expect(json.error.message).not.toContain('user:secret');
+    expect(json.error.stack).not.toContain('user:secret');
+    expect(json.timestamp).toBeTruthy();
   });
 });

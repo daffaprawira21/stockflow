@@ -22,6 +22,9 @@ jobs:
   checks:
     name: Typecheck, lint and tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
 
     services:
       postgres:
@@ -64,10 +67,28 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm run test:coverage
+      - run: npm run build
+      - run: npm run perf:budget
 
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t stockflow:ci .
 
     services:
       postgres:

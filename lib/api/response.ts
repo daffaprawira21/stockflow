@@ -89,13 +89,45 @@ export function jsonError(
   );
 }
 
-export function jsonFromError(error: unknown): Response {
+/**
+ * Log unexpected (non-ApiError) errors for operational visibility (NFR-21).
+ * Only name/message/stack are logged; credential patterns embedded in
+ * connection strings are redacted. The client response payload is unaffected.
+ */
+const URL_CREDENTIALS = new RegExp('://[^:/\\s@]+:[^@\\s]+@', 'g');
+
+function redact(value: string | undefined): string {
+  return (value ?? '').replace(URL_CREDENTIALS, '://[redacted]@');
+}
+
+export function logUnexpectedError(error: unknown, context: { route?: string } = {}): void {
+  const safe =
+    error instanceof Error
+      ? {
+          name: error.name,
+          message: redact(error.message),
+          stack: redact(error.stack),
+        }
+      : { value: redact(String(error)) };
+
+  console.error(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      kind: 'unexpected-error',
+      route: context.route ?? 'unknown',
+      error: safe,
+    }),
+  );
+}
+
+export function jsonFromError(error: unknown, context: { route?: string } = {}): Response {
   if (isApiError(error)) {
     return Response.json(errorBody(error.code, error.message, error.details), {
       status: error.status,
     });
   }
 
+  logUnexpectedError(error, context);
   return jsonError('INTERNAL_SERVER_ERROR');
 }
 
