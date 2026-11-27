@@ -6,7 +6,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stockflow?schema=public
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-local-development-password}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin_123456}
       SESSION_COOKIE_NAME: stockflow_session
       ALLOWED_ORIGINS: http://localhost:3000
       TZ: Asia/Jakarta
