@@ -195,7 +195,7 @@ export function apiHandler<
       }
       return jsonSuccess(result.data, { status: result.status });
     } catch (error) {
-      return jsonFromError(error);
+      return jsonFromError(error, { route: new URL(request.url).pathname });
     }
   };
 

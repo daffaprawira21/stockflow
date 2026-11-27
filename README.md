@@ -6,9 +6,9 @@ StockFlow is a full-stack inventory and order management system designed to help
 
 This project is being developed as a software engineering learning project and developer portfolio, with an emphasis on requirements engineering, system design, database integrity, testing, and deployment.
 
-> **Project status: Sprint 5 complete**
+> **Project status: Sprint 6 complete — production ready**
 >
-> The admin UI for products, inventory, orders, and the dashboard is implemented and fully tested. The application is ready for deployment and CI hardening in Sprint 6.
+> The application is containerized (multi-stage `Dockerfile`, standalone Next.js build), has a health endpoint (`GET /api/health`) for orchestrator probes, sanitized operational error logging, hardened CI (build, performance budget, and container build checks), and documented operational runbooks for backup/recovery and cloud deployment. The full test suite (unit, integration, E2E) and the 80% coverage gate pass. See the [Roadmap](#roadmap) below for the full sprint history.
 
 ## Getting Started
 
@@ -86,12 +86,22 @@ npm run test:e2e
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs two jobs on pushes to `main` and on pull requests, both backed by a PostgreSQL 17 service container:
+`.github/workflows/ci.yml` runs three jobs on pushes to `main` and on pull requests, each backed by a PostgreSQL 17 service container or a Docker-enabled runner:
 
-- **checks** — migrations, `typecheck`, lint, unit tests, integration tests, and the coverage gate (80% for `modules/auth`).
+- **checks** — migrations, `typecheck`, lint, unit tests, integration tests, coverage gate (80% across all business modules), production build, and performance budget check.
 - **e2e** — an isolated PostgreSQL database, Chromium, and the Playwright suite.
+- **docker-build** — builds the `Dockerfile` OCI image to verify the standalone bundle is deployable.
 
 Every job exports `DATABASE_URL`, `TEST_DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_COOKIE_NAME`, and `ALLOWED_ORIGINS`, because `lib/env.ts` validates them at startup.
+
+## Container and Deployment
+
+StockFlow ships a multi-stage `Dockerfile` (Node 24 Alpine) that produces a standalone Next.js bundle plus the Prisma 7 generated client, and a `docker-compose.yml` that runs the app next to PostgreSQL 17 with persistent storage and a health check against `GET /api/health`.
+
+- Build: `docker build -t stockflow .`
+- Run: `docker compose up`
+- Health probe: `GET /api/health` returns `200` with `{ status: 'healthy', database: 'connected' }` or `503` when the database is unreachable.
+- Operational runbooks: `docs/deployment/production-deployment.md` (cloud deployment, secret management, migration lifecycle, rollback) and `docs/deployment/backup-and-recovery.md` (`pg_dump`/`pg_restore`, retention, PITR, `scripts/backup-db.sh`).
 
 ## Table of Contents
 
@@ -296,7 +306,7 @@ This is the target structure and will be established incrementally during implem
 | Sprint 3 | Inventory Management                   | Completed   |
 | Sprint 4 | Order Management                       | Completed   |
 | Sprint 5 | Frontend and Dashboard                 | Completed   |
-| Sprint 6 | Testing and Deployment                 | Planned     |
+| Sprint 6 | Testing and Deployment                 | Completed   |
 
 ## Testing Strategy
 

@@ -12,6 +12,7 @@ export const ERROR_STATUS = {
   INVALID_ORDER_STATE: 422,
   INVALID_ADJUSTMENT: 422,
   INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;
@@ -30,6 +31,7 @@ export const DEFAULT_ERROR_MESSAGES: Record<ErrorCode, string> = {
   INVALID_ORDER_STATE: 'The requested operation is not allowed for this order state',
   INVALID_ADJUSTMENT: 'The inventory adjustment is invalid',
   INTERNAL_SERVER_ERROR: 'An unexpected error occurred',
+  SERVICE_UNAVAILABLE: 'A required service is temporarily unavailable',
 };
 
 export type ApiErrorDetail = Record<string, unknown>;

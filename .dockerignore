@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.scratch
+.agents
+.claude
+.coverage
+coverage
+test-results
+test-results-e2e
+playwright-report
+*.dump
+.DS_Store
+.env
+.env.local
+.env.*.local

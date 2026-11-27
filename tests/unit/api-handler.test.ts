@@ -222,13 +222,40 @@ describe('apiHandler pipeline', () => {
   });
 
   it('maps unexpected errors to INTERNAL_SERVER_ERROR (500)', async () => {
-    const { status } = await run(
-      { auth: false, run: async () => {
-        throw new Error('boom');
-      } },
-      makeRequest({ method: 'GET' }),
-    );
-    expect(status).toBe(500);
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { status } = await run(
+        { auth: false, run: async () => {
+          throw new Error('boom');
+        } },
+        makeRequest({ method: 'GET' }),
+      );
+      expect(status).toBe(500);
+      expect(logSpy).toHaveBeenCalled();
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it('logs unexpected errors without leaking credentials embedded in the error message', async () => {
+    const logSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { status } = await run(
+        {
+          auth: false,
+          run: async () => {
+            throw new Error('connect ECONNREFUSED postgres://admin:pass123@db.internal:5432/prod');
+          },
+        },
+        makeRequest({ method: 'GET', url: 'http://127.0.0.1:3000/api/orders' }),
+      );
+      expect(status).toBe(500);
+      const logged = logSpy.mock.calls[0]?.[0] as string;
+      expect(logged).not.toContain('pass123');
+      expect(logged).toContain('postgres://[redacted]@db.internal');
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   it('returns 400 when the method does not match (VALIDATION_ERROR, not 405)', async () => {
