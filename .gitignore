@@ -30,3 +30,6 @@ reports/
 .codex/
 .impeccable/
 .scratch/
+.github/agents/
+.github/hooks/
+.github/skills/
